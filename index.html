@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0e3b36">
+<title>BWL-Battle</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚔️</text></svg>">
+<style>
+:root{--bg:#f6f4ef;--card:#fff;--ink:#1d2321;--muted:#5d6763;--line:#e3dfd6;--brand:#0e3b36;--accent:#c98a2b;
+--ok:#1f7a3d;--okbg:#e6f4ea;--bad:#b42318;--badbg:#fdecea;--sel:#e8eef9;--selb:#2f5bb7;--chip:#efe9dc;--onbrand:#fff;
+--k0:#e21b3c;--k1:#1368ce;--k2:#d89e00;--k3:#26890c;--warn:#8a5a00;--warnbg:#fff4dc}
+@media (prefers-color-scheme:dark){:root{--bg:#121614;--card:#1b211f;--ink:#e9ece8;--muted:#9aa39f;--line:#2c3431;--brand:#7cc4b5;
+--accent:#e2a64a;--ok:#5fc584;--okbg:#173524;--bad:#ff8a80;--badbg:#3a1d1b;--sel:#1f2a3d;--selb:#7ea4f0;--chip:#2a2f2c;--onbrand:#0b1412;--warn:#f0c35a;--warnbg:#2e2614}}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--ink);line-height:1.45}
+.wrap{max-width:640px;margin:0 auto;padding:16px 16px 48px}
+h1{font-size:1.6rem;margin:.2em 0 .1em;color:var(--brand)} h2{font-size:1.12rem;margin:.1em 0 .6em}
+.sub{color:var(--muted);margin:0 0 12px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;margin:12px 0}
+button{font:inherit;cursor:pointer;border-radius:12px;border:1px solid var(--line);background:var(--card);color:var(--ink);padding:12px 14px;min-height:48px}
+button:disabled{opacity:.45;cursor:not-allowed}
+.btn{background:var(--brand);color:var(--onbrand);border:none;font-weight:700;width:100%}
+.btn2{width:100%;font-weight:600}
+.btnrow{display:grid;gap:10px}
+.mode{display:flex;gap:12px;align-items:center;text-align:left;width:100%;padding:14px;position:relative}
+.mode .ic{font-size:1.7rem} .mode b{display:block} .mode span{color:var(--muted);font-size:.88rem}
+.badge{position:absolute;top:8px;right:10px;background:var(--bad);color:#fff!important;border-radius:999px;padding:2px 9px;font-size:.78rem!important;font-weight:800}
+input,select{font:inherit;width:100%;padding:12px;border-radius:12px;border:1px solid var(--line);background:var(--bg);color:var(--ink);min-height:48px}
+.row{display:flex;gap:10px;align-items:center} .between{justify-content:space-between}
+.opts{display:grid;gap:10px}
+.opt{text-align:left;width:100%;display:flex;gap:10px;align-items:center}
+.opt .sh{flex:0 0 26px;height:26px;border-radius:7px;display:grid;place-items:center;color:#fff;font-size:.8rem;font-weight:800}
+.opt.sel{background:var(--sel);border-color:var(--selb)} .opt.right{background:var(--okbg);border-color:var(--ok)} .opt.wrong{background:var(--badbg);border-color:var(--bad)}
+.top{display:flex;justify-content:space-between;align-items:center;font-size:.9rem;color:var(--muted);gap:8px}
+.chip{display:inline-block;background:var(--chip);border-radius:999px;padding:3px 10px;font-size:.8rem;color:var(--ink)}
+.timer{height:7px;background:var(--line);border-radius:6px;overflow:hidden;margin:8px 0 2px}
+.timer>div{height:100%;background:var(--accent);width:100%;transition:width .25s linear}
+.q{font-size:1.08rem;font-weight:650;margin:6px 0 12px}
+.match{display:grid;gap:12px} .mitem{border:1px solid var(--line);border-radius:12px;padding:10px} .mitem p{margin:0 0 8px}
+.mchoices{display:flex;flex-wrap:wrap;gap:6px} .mchoices button{min-height:40px;padding:8px 10px;font-size:.88rem}
+.mchoices button.sel{background:var(--sel);border-color:var(--selb)}
+.mitem.right{border-color:var(--ok);background:var(--okbg)} .mitem.wrong{border-color:var(--bad);background:var(--badbg)}
+.fb{border-radius:12px;padding:12px;margin-top:12px} .fb.ok{background:var(--okbg);border:1px solid var(--ok)} .fb.bad{background:var(--badbg);border:1px solid var(--bad)}
+.fb b{display:block;margin-bottom:4px}
+.note{border-radius:12px;padding:10px 12px;background:var(--warnbg);color:var(--warn);font-size:.88rem;margin:10px 0}
+.big{font-size:2.4rem;font-weight:800;color:var(--brand);margin:0}
+table{width:100%;border-collapse:collapse;font-size:.95rem} td,th{padding:8px 6px;border-bottom:1px solid var(--line);text-align:left}
+th{color:var(--muted);font-weight:600;font-size:.8rem} td.num,th.num{text-align:right;font-variant-numeric:tabular-nums} tr.me td{font-weight:700;background:var(--sel)}
+tr.click{cursor:pointer}
+.muted{color:var(--muted);font-size:.9rem} .small{font-size:.82rem} .hidden{display:none!important}
+.bar{height:8px;background:var(--line);border-radius:8px;overflow:hidden} .bar>div{height:100%;background:var(--ok)}
+.bar.mid>div{background:var(--accent)} .bar.low>div{background:var(--bad)}
+.topicrow{margin:10px 0} .topicrow .row{justify-content:space-between;font-size:.9rem;gap:8px}
+.review{border-top:1px solid var(--line);padding:10px 0}
+.pausebtn{min-height:36px;padding:4px 12px;font-size:.85rem}
+.pauseov{position:fixed;inset:0;background:rgba(10,20,18,.88);color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;z-index:50;padding:20px;text-align:center}
+.pauseov .btn{max-width:320px}
+.code{font-size:2.6rem;font-weight:900;letter-spacing:.25em;color:var(--brand);text-align:center;margin:6px 0}
+.players{display:flex;flex-wrap:wrap;gap:8px} .players span{background:var(--chip);border-radius:999px;padding:6px 12px;font-weight:600}
+.leader{background:linear-gradient(90deg,var(--accent),#f0c35a);color:#1d1400;border-radius:12px;padding:10px 14px;font-weight:800;margin:10px 0}
+.dist{display:grid;gap:6px;margin-top:10px} .dist .dl{display:flex;align-items:center;gap:8px;font-size:.85rem}
+.dist .db{flex:1;height:18px;background:var(--line);border-radius:6px;overflow:hidden} .dist .db>div{height:100%}
+.podium{display:flex;align-items:flex-end;justify-content:center;gap:8px;margin:16px 0 6px}
+.podium div{flex:1;max-width:120px;text-align:center;border-radius:12px 12px 0 0;color:#fff;padding:8px 4px;font-weight:700;overflow-wrap:anywhere}
+.podium .p1{background:#b8890f;height:150px}.podium .p2{background:#6f7f8b;height:115px}.podium .p3{background:#9a5f2f;height:90px}
+.podium small{display:block;font-weight:500}
+.wait{display:flex;align-items:center;gap:10px}
+.dot{flex:0 0 10px;width:10px;height:10px;border-radius:50%;background:var(--accent);animation:pl 1s infinite alternate}@keyframes pl{to{opacity:.2}}
+.tlist{display:grid;gap:8px} .tlist button{text-align:left;display:flex;justify-content:space-between;gap:8px;align-items:center}
+canvas#conf{position:fixed;inset:0;pointer-events:none;z-index:60}
+.back{background:none;border:none;color:var(--brand);font-weight:700;padding:6px 0;min-height:40px}
+.status{display:flex;align-items:center;gap:6px;font-size:.82rem;color:var(--muted);margin-top:10px}
+.status i{width:9px;height:9px;border-radius:50%;background:var(--muted);display:inline-block}
+.status.on i{background:var(--ok)} .status.off i{background:var(--bad)}
+.vs{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:8px;text-align:center}
+.vs .nm{font-weight:700;overflow-wrap:anywhere} .vs .sc{font-size:2.2rem;font-weight:900;color:var(--brand)}
+.rounds{display:grid;gap:6px}
+.rnd{display:grid;grid-template-columns:1fr auto 1fr;gap:8px;align-items:center;border:1px solid var(--line);border-radius:12px;padding:8px 10px}
+.rnd .mid{text-align:center;font-size:.8rem;color:var(--muted);max-width:150px}
+.rnd .mid b{display:block;color:var(--ink);font-size:.85rem}
+.marks{display:flex;gap:4px} .marks.r{justify-content:flex-end}
+.mk{width:22px;height:22px;border-radius:6px;background:var(--line);display:grid;place-items:center;font-size:.75rem;color:#fff;font-weight:800}
+.mk.y{background:var(--ok)} .mk.n{background:var(--bad)} .mk.h{background:var(--accent)} .mk.q{background:var(--chip);color:var(--muted)}
+.dlist{display:grid;gap:8px} .dlist button{text-align:left;display:flex;justify-content:space-between;align-items:center;gap:10px}
+.dlist .st{font-size:.82rem;color:var(--muted)} .dlist .go{font-weight:800;color:var(--bad)}
+.share{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}
+.pill-ok{color:var(--ok);font-weight:700} .pill-bad{color:var(--bad);font-weight:700}
+.stars{display:grid;gap:6px}
+.stars div{display:flex;justify-content:space-between;gap:8px;border-bottom:1px solid var(--line);padding:6px 0;font-size:.9rem}
+.stars div span:first-child{flex:1}
+</style>
+</head>
+<body>
+<canvas id="conf"></canvas>
+<div class="wrap">
+
+<!-- HOME -->
+<section id="vHome">
+  <h1 id="appTitle">⚔️ BWL-Battle</h1>
+  <p class="sub" id="appSub"></p>
+  <div class="card hidden" id="inviteCard"></div>
+  <div class="card">
+    <label for="nick"><b>Dein Spielername</b></label>
+    <div style="height:8px"></div>
+    <input id="nick" type="text" maxlength="20" placeholder="Dein Name" autocomplete="off" enterkeyhint="done">
+    <p class="muted small" id="coverage" style="margin:10px 0 0"></p>
+    <div class="bar" style="margin-top:6px"><div id="covBar" style="width:0"></div></div>
+    <div class="status" id="conn"><i></i><span>Verbinde mit der Rangliste …</span></div>
+  </div>
+  <div class="btnrow">
+    <button class="mode needname" id="goMix"><span class="ic">🎯</span><div><b>Solo · Gemischt</b><span>15 Fragen aus allen Themen, bevorzugt welche, die du noch nicht hattest</span></div></button>
+    <button class="mode needname" id="goTopics"><span class="ic">📚</span><div><b>Solo · Nach Thema</b><span>Ein Thema gezielt üben, mit eigener Rangliste pro Thema</span></div></button>
+    <button class="mode needname needonline" id="goDuels"><span class="ic">⚔️</span><div><b>Duelle</b><span>1 gegen 1 wie Quizduell: 6 Runden à 3 Fragen, jede:r spielt, wann sie/er Zeit hat</span></div><span class="badge hidden" id="duelBadge"></span></button>
+    <button class="mode needname needonline" id="goLive"><span class="ic">🔴</span><div><b>Live-Battle</b><span>Viele Handys gleichzeitig: Raum erstellen oder beitreten, wie Kahoot</span></div></button>
+    <button class="mode" id="goHot"><span class="ic">👥</span><div><b>Ein Handy, reihum</b><span>2–6 Leute an einem Gerät, mit Zwischenstand und Siegerehrung</span></div></button>
+  </div>
+  <div class="card">
+    <div class="row between"><h2 style="margin:0">🏆 Rangliste</h2><span class="muted small" id="lbState"></span></div>
+    <div style="height:8px"></div>
+    <div id="lbMini"><p class="muted">Rangliste wird geladen …</p></div>
+    <div style="height:10px"></div>
+    <div class="btnrow" style="grid-template-columns:1fr 1fr">
+      <button class="btn2" id="goRank">Ganze Rangliste</button>
+      <button class="btn2" id="goMe">📊 Mein Profil</button>
+    </div>
+  </div>
+  <p class="muted small">Punkte: 100 pro richtiger Antwort, dazu bis zu +50 Zeitbonus. Bei Zuordnungen gibt es Teilpunkte. In die Rangliste zählen Solo-Runden, Duelle und Live-Battles. Kein Konto nötig – dein Handy merkt sich, wer du bist.</p>
+</section>
+
+<!-- THEMEN -->
+<section id="vTopics" class="hidden">
+  <button class="back" data-home>‹ Start</button>
+  <h1>📚 Thema wählen</h1>
+  <p class="sub">Alle Fragen eines Themas in gemischter Reihenfolge.</p>
+  <div class="tlist" id="topicList"></div>
+</section>
+
+<!-- RANGLISTE -->
+<section id="vRank" class="hidden">
+  <button class="back" data-home>‹ Start</button>
+  <h1>🏆 Rangliste</h1>
+  <select id="rankSel" aria-label="Rangliste wählen"></select>
+  <p class="muted small" id="rankHint" style="margin:8px 0 0"></p>
+  <div class="card" id="rankBox"></div>
+  <p class="muted small">Tipp: Tipp auf einen Namen, um Stärken und Schwächen zu sehen – und die Person zum Duell zu fordern.</p>
+</section>
+
+<!-- PROFIL -->
+<section id="vProfile" class="hidden">
+  <button class="back" id="profBack">‹ Zurück</button>
+  <h1 id="profName"></h1>
+  <p class="sub" id="profSub"></p>
+  <button class="btn hidden" id="profDuel">⚔️ Zum Duell fordern</button>
+  <div class="card"><h2>💪 Stärken</h2><div id="profStrong"></div></div>
+  <div class="card"><h2>🧱 Daran noch arbeiten</h2><div id="profWeak"></div></div>
+  <div class="card"><h2>📊 Alle Themen</h2><div id="profTopics"></div></div>
+</section>
+
+<!-- DUELLE: LISTE -->
+<section id="vDuels" class="hidden">
+  <button class="back" data-home>‹ Start</button>
+  <h1>⚔️ Duelle</h1>
+  <p class="sub">6 Runden à 3 Fragen. Abwechselnd wählt jemand das Thema – gespielt wird, wann ihr Zeit habt.</p>
+  <button class="btn" id="duelNewBtn">+ Neues Duell</button>
+  <div id="duelLists"></div>
+</section>
+
+<!-- DUELLE: NEU -->
+<section id="vDuelNew" class="hidden">
+  <button class="back" id="dnBack">‹ Duelle</button>
+  <h1>Wen forderst du heraus?</h1>
+  <div class="card">
+    <h2>🔗 Per Link einladen</h2>
+    <p class="muted small" style="margin:0 0 10px">Du bekommst einen Link für WhatsApp & Co. Wer ihn zuerst öffnet, ist dein:e Gegner:in.</p>
+    <button class="btn" id="dnLink">Duell-Link erstellen</button>
+  </div>
+  <div class="card">
+    <h2>👤 Jemanden aus der Rangliste</h2>
+    <input id="dnSearch" type="search" placeholder="Name suchen …" autocomplete="off">
+    <div style="height:10px"></div>
+    <div class="dlist" id="dnList"></div>
+  </div>
+  <p class="small" id="dnMsg" style="color:var(--bad)"></p>
+</section>
+
+<!-- DUELL: ANSICHT -->
+<section id="vDuel" class="hidden">
+  <button class="back" id="dvBack">‹ Duelle</button>
+  <div class="card">
+    <div class="vs">
+      <div><div class="nm" id="dvMe"></div><div class="sc" id="dvMeSc">0</div><div class="small muted" id="dvMePt"></div></div>
+      <div class="muted" style="font-weight:800">vs</div>
+      <div><div class="nm" id="dvOp"></div><div class="sc" id="dvOpSc">0</div><div class="small muted" id="dvOpPt"></div></div>
+    </div>
+  </div>
+  <div id="dvStatus"></div>
+  <div class="rounds" id="dvRounds"></div>
+  <div id="dvShare"></div>
+  <div style="height:14px"></div>
+  <button class="btn2 hidden" id="dvGiveUp">Aufgeben</button>
+</section>
+
+<!-- DUELL: THEMA WÄHLEN -->
+<section id="vDuelPick" class="hidden">
+  <button class="back" id="dpBack">‹ Duell</button>
+  <h1 id="dpTitle">Runde 1: Thema wählen</h1>
+  <p class="sub">Du spielst zuerst, danach bekommt dein:e Gegner:in dieselben 3 Fragen.</p>
+  <div class="tlist" id="dpList"></div>
+</section>
+
+<!-- LIVE START -->
+<section id="vLive" class="hidden">
+  <button class="back" data-home>‹ Start</button>
+  <h1>🔴 Live-Battle</h1>
+  <p class="sub">Eine Person erstellt den Raum (Host) und spielt mit. Alle anderen treten bei. Der Host muss die Seite bis zum Ende offen lassen.</p>
+  <div class="card">
+    <h2>Raum erstellen (du bist Host)</h2>
+    <select id="liveTopic" aria-label="Thema für das Battle"></select>
+    <div style="height:10px"></div>
+    <button class="btn" id="createRoom">Raum erstellen</button>
+  </div>
+  <div class="card">
+    <h2>Beitreten</h2>
+    <div id="openRooms"></div>
+    <input id="joinCode" inputmode="numeric" maxlength="4" placeholder="4-stelliger Code" autocomplete="off">
+    <div style="height:10px"></div>
+    <button class="btn2" id="joinRoom">Mit Code beitreten</button>
+  </div>
+  <p class="small" id="joinMsg" style="color:var(--bad);margin:8px 0 0"></p>
+</section>
+
+<!-- LOBBY -->
+<section id="vLobby" class="hidden">
+  <h1>Warteraum</h1>
+  <div class="card" style="text-align:center">
+    <p class="muted" style="margin:0">Code für deine Kommiliton:innen</p>
+    <div class="code" id="lobCode">----</div>
+    <p class="muted small" style="margin:0" id="lobTopic"></p>
+    <div class="share" id="lobShare"></div>
+  </div>
+  <div class="card">
+    <div class="row between"><h2 style="margin:0">Dabei</h2><b><span id="lobCount">0</span></b></div>
+    <div style="height:10px"></div>
+    <div class="players" id="lobPlayers"></div>
+  </div>
+  <button class="btn" id="lobStart">Battle starten</button>
+  <div class="wait card" id="lobWait"><span class="dot"></span><span>Warte, bis der Host startet …</span></div>
+  <div style="height:10px"></div>
+  <button class="btn2" id="lobLeave">Raum verlassen</button>
+</section>
+
+<!-- FRAGE (Solo, Duell, Live, Reihum) -->
+<section id="vQuiz" class="hidden">
+  <div class="top">
+    <span id="qCount">Frage 1/15</span>
+    <span class="chip" id="qTopic"></span>
+    <button class="pausebtn" id="pauseBtn" aria-label="Pause">⏸ Pause</button>
+  </div>
+  <div class="timer"><div id="tBar"></div></div>
+  <div class="top small"><span id="qType"></span><span><b id="qScore">0</b> P · <span id="tLeft"></span></span></div>
+  <div class="card">
+    <div class="q" id="qText"></div>
+    <div id="qBody"></div>
+    <div id="qFb"></div>
+  </div>
+  <button class="btn" id="actBtn">Antwort abgeben</button>
+  <div class="wait card hidden" id="liveWait"><span class="dot"></span><span id="liveWaitTxt">Antwort gespeichert – warte auf die anderen …</span></div>
+  <button class="btn hidden" id="hostReveal" style="margin-top:10px">Auflösen</button>
+</section>
+
+<!-- AUFLÖSUNG (Live + Reihum) -->
+<section id="vReveal" class="hidden">
+  <div class="top"><span id="rvCount"></span><span class="chip" id="rvTopic"></span></div>
+  <div class="card">
+    <div class="q" id="rvQ"></div>
+    <div id="rvMine"></div>
+    <div id="rvAns"></div>
+    <div class="dist" id="rvDist"></div>
+    <p class="small muted" id="rvExp" style="margin:10px 0 0"></p>
+  </div>
+  <div class="leader" id="rvLeader"></div>
+  <div class="card"><h2>Zwischenstand</h2><div id="rvBoard"></div></div>
+  <button class="btn" id="hostNext">Nächste Frage</button>
+  <div class="wait card" id="rvWait"><span class="dot"></span><span id="rvWaitTxt">Der Host startet gleich die nächste Frage …</span></div>
+</section>
+
+<!-- PODIUM -->
+<section id="vPodium" class="hidden">
+  <h1 style="text-align:center">🏆 Siegerehrung</h1>
+  <div class="podium" id="podium"></div>
+  <div class="card"><h2>Endstand</h2><div id="finalBoard"></div></div>
+  <div class="card"><h2 id="liveReviewH">❌ Fehler zum Nachlernen</h2><div id="liveReview"></div></div>
+  <button class="btn" id="podHome">Zurück zum Start</button>
+</section>
+
+<!-- SOLO ENDE -->
+<section id="vEnd" class="hidden">
+  <h1>Geschafft! 🎉</h1>
+  <div class="card" style="text-align:center">
+    <p class="muted" style="margin:0" id="endMode"></p>
+    <p class="big" id="endScore">0</p>
+    <p class="muted" style="margin:0" id="endDetail"></p>
+    <p class="small" id="saveState" style="margin:10px 0 0"></p>
+  </div>
+  <div class="row"><button class="btn" id="againBtn">Neue Runde</button><button class="btn2" id="copyBtn">Ergebnis teilen</button></div>
+  <p class="muted small" id="copyState"></p>
+  <button class="btn2" id="homeBtn">Zum Start</button>
+  <div class="card"><h2>📊 Nach Thema</h2><div id="topicBox"></div></div>
+  <div class="card"><h2>❌ Fehler zum Nachlernen</h2><div id="reviewBox"></div></div>
+</section>
+
+<!-- REIHUM -->
+<section id="vHot" class="hidden">
+  <button class="back" data-home>‹ Start</button>
+  <h1>👥 Ein Handy, reihum</h1>
+  <p class="sub">Alle bekommen dieselbe Frage. Nach jeder Antwort gebt ihr das Handy weiter, aufgelöst wird erst, wenn alle dran waren.</p>
+  <div class="card">
+    <h2>Wer spielt mit?</h2>
+    <div id="hotNames" class="btnrow"></div>
+    <div style="height:10px"></div>
+    <button class="btn2" id="hotAdd">+ Person hinzufügen</button>
+  </div>
+  <div class="card">
+    <h2>Fragen</h2>
+    <select id="hotTopic" aria-label="Fragen für die Runde"></select>
+  </div>
+  <button class="btn" id="hotStart">Los geht's</button>
+  <p class="small" id="hotMsg" style="color:var(--bad);margin:8px 0 0"></p>
+</section>
+<section id="vPass" class="hidden">
+  <div class="card" style="text-align:center;margin-top:12vh">
+    <div style="font-size:3.2rem">📱</div>
+    <p class="muted" id="passInfo" style="margin:6px 0 0"></p>
+    <p style="margin:14px 0 0">Gib das Handy an</p>
+    <div class="code" id="passName" style="letter-spacing:0;font-size:2.2rem"></div>
+    <p class="muted small">Die anderen bitte nicht aufs Display schauen 😉</p>
+    <button class="btn" id="passGo">Ich bin bereit – los!</button>
+  </div>
+  <div class="card" id="passBoard"></div>
+</section>
+
+</div>
+
+<div class="pauseov hidden" id="pauseOv">
+  <div style="font-size:3rem">⏸</div>
+  <h2 style="color:#fff;margin:0" id="pauseTitle">Pause</h2>
+  <p style="margin:0;opacity:.85" id="pauseTxt">Die Zeit ist angehalten.</p>
+  <button class="btn" id="resumeBtn">▶ Weiter</button>
+</div>
+
+<script src="fragen.js"></script>
+<script src="firebase-config.js"></script>
+<script src="vendor/firebase-bundle.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

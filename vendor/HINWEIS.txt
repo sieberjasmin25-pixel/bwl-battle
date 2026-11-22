@@ -1,0 +1,6 @@
+firebase-bundle.js enthält das Firebase JavaScript SDK 10.14.1 (App, Auth, Firestore),
+gebündelt mit esbuild. Lizenz: Apache License 2.0 – https://github.com/firebase/firebase-js-sdk/blob/main/LICENSE
+Neu bauen (nur bei Bedarf):
+  npm install firebase@10.14.1 esbuild
+  npx esbuild entry.js --bundle --minify --format=iife --target=es2019 --outfile=firebase-bundle.js
+  (entry.js importiert die benötigten Funktionen und hängt sie an window.FB – siehe tools/firebase-entry.js)
