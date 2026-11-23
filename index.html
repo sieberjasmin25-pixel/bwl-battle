@@ -72,6 +72,13 @@ tr.click{cursor:pointer}
 canvas#conf{position:fixed;inset:0;pointer-events:none;z-index:60}
 .modebtn{padding:10px 4px;font-size:1.5rem;line-height:1.15;display:flex;flex-direction:column;align-items:center;gap:2px}
 .modebtn span{font-size:.82rem;font-weight:700}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 14px}
+.chips button{min-height:40px;padding:6px 12px;border-radius:999px;font-size:.9rem}
+.chips button.sel{background:var(--brand);color:var(--onbrand);border-color:var(--brand);font-weight:700}
+.trow button.on{background:var(--sel);border-color:var(--selb)}
+.trow .ck{flex:0 0 auto;font-size:1.25rem;line-height:1}
+.linkbtn{background:none;border:none;color:var(--brand);font-weight:700;min-height:36px;padding:4px 6px}
+.startbar{position:sticky;bottom:0;background:var(--bg);padding:10px 0 8px;margin-top:10px;border-top:1px solid var(--line)}
 .trow{display:flex;gap:8px;align-items:stretch} .trow>button:first-child{flex:1;min-width:0} .trow .eye{flex:0 0 auto;padding:8px 10px;font-size:.85rem;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px}
 .sadpop{position:fixed;left:50%;top:38%;font-size:5.5rem;line-height:1;transform:translate(-50%,-50%) scale(.4);opacity:0;pointer-events:none;z-index:61;animation:sadpop 1.4s ease-out forwards}
 @keyframes sadpop{18%{opacity:1;transform:translate(-50%,-50%) scale(1.15)}32%{transform:translate(-50%,-50%) scale(1)}75%{opacity:1}100%{opacity:0;transform:translate(-50%,-25%) scale(1)}}
@@ -141,7 +148,7 @@ canvas#conf{position:fixed;inset:0;pointer-events:none;z-index:60}
       </div>
       <p class="muted small" style="margin:8px 0 0">Endlos: bis zum ersten Fehler · Blitz: 15 Fragen, nur 10 s · Klausur: 20 Fragen, Auflösung erst am Ende</p>
     </div>
-    <button class="mode needname" id="goTopics"><span class="ic">📚</span><div><b>Solo · Nach Thema</b><span>Ein Thema gezielt üben, mit eigener Rangliste pro Thema</span></div></button>
+    <button class="mode needname" id="goTopics"><span class="ic">📚</span><div><b>Solo · Nach Thema &amp; Modus</b><span>Modus wählen, ein oder mehrere Themen ankreuzen – los</span></div></button>
     <button class="mode needname needonline" id="goDuels"><span class="ic">⚔️</span><div><b>Duelle</b><span>1 gegen 1 wie Quizduell: 6 Runden à 3 Fragen, jede:r spielt, wann sie/er Zeit hat</span></div><span class="badge hidden" id="duelBadge"></span></button>
     <button class="mode needname needonline" id="goLive"><span class="ic">🔴</span><div><b>Live-Battle</b><span>Viele Handys gleichzeitig: Raum erstellen oder beitreten, wie Kahoot</span></div></button>
     <button class="mode" id="goHot"><span class="ic">👥</span><div><b>Ein Handy, reihum</b><span>2–6 Leute an einem Gerät, mit Zwischenstand und Siegerehrung</span></div></button>
@@ -162,9 +169,17 @@ canvas#conf{position:fixed;inset:0;pointer-events:none;z-index:60}
 <!-- THEMEN -->
 <section id="vTopics" class="hidden">
   <button class="back" data-home>‹ Start</button>
-  <h1>📚 Thema wählen</h1>
-  <p class="sub">Tippe auf ein Thema zum Spielen – oder auf 👁, um alle Fragen mit Lösung anzusehen.</p>
+  <h1>📚 Runde zusammenstellen</h1>
+  <p class="sub">1. Modus wählen · 2. Themen ankreuzen · 3. Starten. Mit 👁 siehst du alle Fragen eines Themas.</p>
+  <b>Modus</b>
+  <div class="chips" id="modeChips" role="radiogroup" aria-label="Modus"></div>
+  <div class="row between"><b>Themen</b><span><button class="linkbtn" id="selAll">Alle</button>·<button class="linkbtn" id="selNone">Keine</button></span></div>
+  <div style="height:6px"></div>
   <div class="tlist" id="topicList"></div>
+  <div class="startbar">
+    <button class="btn" id="cfgStart">▶ Starten</button>
+    <p class="muted small" id="cfgInfo" style="margin:6px 0 0;text-align:center"></p>
+  </div>
 </section>
 
 <!-- FRAGEN ANSEHEN (Thema) -->

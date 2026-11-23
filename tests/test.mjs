@@ -48,7 +48,7 @@ try{
   /* ---------- 2. Solo nach Thema ---------- */
   console.log("Solo · Nach Thema");
   await A.click("#homeBtn"); await A.waitForSelector("#vHome:not(.hidden)");
-  await A.click("#goTopics"); await A.click("#topicList button[data-t='14']");
+  await A.click("#goTopics"); await A.click("#topicList button[data-t='14']"); await A.click("#cfgStart");
   for(let i=0;i<5;i++){ await answer(A,true); await A.click("#actBtn"); }
   await A.waitForSelector("#vEnd:not(.hidden)");
   await A.waitForFunction(()=>/✓|🏆/.test(document.getElementById("saveState").textContent));
@@ -257,7 +257,7 @@ try{
   const L=await ctx.newPage(); L.on("pageerror",e=>errors.push("L: "+e.message));
   await L.goto(`${URL0}?mock=1&uid=ul&fach=bwl`); await L.waitForSelector("#conn.on"); await L.evaluate(()=>localStorage.removeItem("kb_bwl_progress")); await L.reload(); await L.waitForSelector("#conn.on"); await L.fill("#nick","Lea");
   ok(!(await L.isVisible("#goWrong")), "Ohne Fehler kein „Falsche nochmal üben“-Knopf");
-  await L.click("#goTopics"); await L.click("#topicList button[data-t='0']");
+  await L.click("#goTopics"); await L.click("#topicList button[data-t='0']"); await L.click("#cfgStart");
   ok(!(await L.isVisible("#prevBtn")), "Bei Frage 1 kein „Vorherige“-Knopf");
   await answer(L,false); await L.waitForSelector(".sadpop");
   ok(true, "Falsche Antwort → trauriger Smiley erscheint");
@@ -314,18 +314,18 @@ try{
   ok(vr.diff===vr.gen+vr.qv - 0 || vr.diff>=vr.gen, `Varianten unterscheiden sich wirklich (${vr.diff})`);
   ok(vr.same, "Gleicher Startwert → gleiche Variante (fair in Duell & Live)");
   // Endlos
-  await V.click("#goEndlos"); await answer(V,true); await V.waitForFunction(()=>cur&&cur.answered&&!document.getElementById("actBtn").disabled); await V.click("#actBtn");
+  await V.click("#goEndlos"); await V.click("#cfgStart"); await answer(V,true); await V.waitForFunction(()=>cur&&cur.answered&&!document.getElementById("actBtn").disabled); await V.click("#actBtn");
   await answer(V,false); await V.waitForFunction(()=>cur&&cur.answered&&!document.getElementById("actBtn").disabled);
   ok(/Auswertung/.test(await V.textContent("#actBtn")), "Endlos: nach dem ersten Fehler ist Schluss");
   await V.click("#actBtn"); await V.waitForSelector("#vEnd:not(.hidden)");
   ok((await V.textContent("#endDetail")).includes("1 richtig in Folge"), "Endlos: Ergebnis zeigt die Serie");
   // Blitz
-  await V.click("#homeBtn"); await V.click("#goBlitz");
+  await V.click("#homeBtn"); await V.click("#goBlitz"); await V.click("#cfgStart");
   const bz=await V.evaluate(()=>[solo.ids.length, solo.ids.every(id=>QBY[id].type==="mc"), cur.limit, document.getElementById("pauseBtn").classList.contains("hidden")]);
   ok(bz[0]===15 && bz[1] && bz[2]===10 && bz[3], "Blitz: 15 Auswahlfragen, 10 Sekunden, keine Pause");
   await V.evaluate(()=>{ stopQuiz(); location.hash=""; }); await V.waitForSelector("#vHome:not(.hidden)");
   // Klausur-Simulation
-  await V.click("#goPruef");
+  await V.click("#goPruef"); await V.click("#cfgStart");
   ok(await V.evaluate(()=>solo.ids.length===20), "Klausur-Simulation: 20 Fragen");
   await answer(V,false); await V.waitForFunction(()=>cur&&cur.answered);
   const fb=await V.textContent("#qFb");
@@ -335,6 +335,27 @@ try{
   await V.waitForSelector("#vEnd:not(.hidden)");
   ok((await V.textContent("#reviewBox")).includes("Lösung"), "Klausur-Simulation: Auflösung der Fehler am Ende");
   ok((await V.textContent("#endMode")).includes("Klausur"), "Ergebnis zeigt „Klausur-Simulation“");
+
+  /* ---------- 15. Runde zusammenstellen ---------- */
+  console.log("Runde zusammenstellen");
+  const C2=await ctx.newPage(); C2.on("pageerror",e=>errors.push("C2: "+e.message));
+  await C2.goto(`${URL0}?mock=1&uid=uc2&fach=bwl`); await C2.waitForSelector("#conn.on"); await C2.fill("#nick","Clara");
+  await C2.click("#goTopics");
+  ok(await C2.isDisabled("#cfgStart"), "Ohne angekreuztes Thema kein Start");
+  await C2.click("#modeChips button[data-m='blitz']"); await C2.click("#topicList button[data-t='0']"); await C2.click("#topicList button[data-t='3']");
+  ok(/2 Themen/.test(await C2.textContent("#cfgInfo")), "Info zeigt Modus, Themenzahl und Fragenzahl");
+  await C2.click("#cfgStart");
+  const cs=await C2.evaluate(()=>[solo.topic, solo.ids.every(id=>[0,3].includes(QBY[id].t)&&QBY[id].type==="mc"), solo.ids.length]);
+  ok(cs[0]==="blitz" && cs[1] && cs[2]>0, `Blitz nur aus den 2 gewählten Themen (${cs[2]} Fragen)`);
+  for(let i=0;i<cs[2];i++){ await answer(C2,true); await C2.waitForFunction(()=>cur&&cur.answered&&!document.getElementById("actBtn").disabled); await C2.click("#actBtn"); }
+  await C2.waitForSelector("#vEnd:not(.hidden)"); await C2.waitForFunction(()=>/✓|🏆/.test(document.getElementById("saveState").textContent));
+  const rc2=await C2.evaluate(()=>JSON.parse(localStorage.getItem("mockdb:ranking/uc2")));
+  ok(!(rc2.topics||{}).tblitz && rc2.total>0 && /2 Themen/.test(await C2.textContent("#endMode")), "Eigene Auswahl: Punkte in der Statistik, kein Bestwert");
+  await C2.click("#againBtn");
+  ok(await C2.evaluate(()=>solo.topic==="blitz"&&solo.ids.every(id=>[0,3].includes(QBY[id].t))), "„Neue Runde“ behält Modus und Themen");
+  await C2.evaluate(()=>{ stopQuiz(); location.hash=""; }); await C2.waitForSelector("#vHome:not(.hidden)");
+  await C2.click("#goEndlos");
+  ok(await C2.evaluate(()=>cfg.mode==="endlos"&&cfg.sel.size===TOPICS.length), "Startseite „Endlos“ öffnet die Auswahl mit allen Themen");
 
   /* ---------- 9. Jede Frage jedes Fachs: richtige Antwort wird als richtig gewertet ---------- */
   console.log("Alle Fragen aller Fächer");

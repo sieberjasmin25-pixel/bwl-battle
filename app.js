@@ -198,17 +198,19 @@ const altHtml = q => q&&q.alt ? `<div class="small" style="margin-top:8px"><b>�
 const MIN_CALC = 3;   // ab so vielen Rechenaufgaben gibt es den Modus „Nur Rechnen“
 function topicLabel(topic,f){ f=f||FACH; return topic==="mix"?"🎯 Gemischt":topic==="calc"?"🧮 Nur Rechnen":topic==="wrong"?"❌ Falsche nochmal":topic==="endlos"?"♾️ Endlos":topic==="blitz"?"⚡ Blitzrunde":topic==="pruefung"?"📝 Klausur-Simulation":"📚 "+(f.topics[+topic]||""); }
 const wrongQs = () => Q.filter(q=>(progress.wrong[q.id]||0)>0);
-function pickRound(topic,n){
+function pickRound(topic,n,tset){   // tset: Set mit Themen-Indizes (eigene Auswahl) oder null = alle Themen
   n=n||ROUND;
-  if(topic==="endlos") return shuffle(Q.map(q=>q.id));
-  if(topic==="blitz") return shuffle(Q.filter(q=>q.type==="mc").map(q=>q.id)).slice(0,ROUND);
-  if(topic==="pruefung") return pickRound("mix",20);
-  if(topic==="wrong") return shuffle(wrongQs().map(q=>q.id)).slice(0,ROUND);
-  if(topic==="calc") return shuffle(Q.filter(q=>q.type==="num").sort((a,b)=>rankQ(a)-rankQ(b)).slice(0,ROUND).map(q=>q.id));
+  const pool = tset ? Q.filter(q=>tset.has(q.t)) : Q;
+  const tl = tset ? [...tset] : TOPICS.map((_,i)=>i);
+  if(topic==="endlos") return shuffle(pool.map(q=>q.id));
+  if(topic==="blitz") return shuffle(pool.filter(q=>q.type==="mc").map(q=>q.id)).slice(0,ROUND);
+  if(topic==="pruefung") return pickRound("mix",20,tset);
+  if(topic==="wrong") return shuffle(pool.filter(q=>(progress.wrong[q.id]||0)>0).map(q=>q.id)).slice(0,ROUND);
+  if(topic==="calc") return shuffle(pool.filter(q=>q.type==="num").sort((a,b)=>rankQ(a)-rankQ(b)).slice(0,ROUND).map(q=>q.id));
   if(topic!=="mix"){ const t=+topic; return shuffle(Q.filter(q=>q.t===t).sort((a,b)=>rankQ(a)-rankQ(b)).slice(0,ROUND).map(q=>q.id)); }
   const chosen=[]; const used=new Set();
-  shuffle(TOPICS.map((_,i)=>i)).forEach(t=>{const c=Q.filter(q=>q.t===t).sort((a,b)=>rankQ(a)-rankQ(b))[0]; if(c&&chosen.length<n){chosen.push(c.id);used.add(c.id);}});
-  Q.filter(q=>!used.has(q.id)).sort((a,b)=>rankQ(a)-rankQ(b)).slice(0,n-chosen.length).forEach(q=>chosen.push(q.id));
+  shuffle(tl).forEach(t=>{const c=pool.filter(q=>q.t===t).sort((a,b)=>rankQ(a)-rankQ(b))[0]; if(c&&chosen.length<n){chosen.push(c.id);used.add(c.id);}});
+  pool.filter(q=>!used.has(q.id)).sort((a,b)=>rankQ(a)-rankQ(b)).slice(0,n-chosen.length).forEach(q=>chosen.push(q.id));
   return shuffle(chosen);
 }
 
@@ -234,23 +236,44 @@ function renderHome(){
 }
 function setConn(state,text){ const c=$("conn"); c.className="status "+state; c.lastChild.textContent=text; }
 $("goMix").onclick=()=>startSolo("mix");
-$("goTopics").onclick=()=>{go("vTopics","themen");renderTopics();};
+$("goTopics").onclick=()=>openCfg("normal",false);
 $("goWrong").onclick=()=>startSolo("wrong");
-$("goEndlos").onclick=()=>startSolo("endlos");
-$("goBlitz").onclick=()=>startSolo("blitz");
-$("goPruef").onclick=()=>startSolo("pruefung");
+$("goEndlos").onclick=()=>openCfg("endlos",true);
+$("goBlitz").onclick=()=>openCfg("blitz",true);
+$("goPruef").onclick=()=>openCfg("pruefung",true);
 $("endWrong").onclick=()=>startSolo("wrong");
 $("goCalc").onclick=()=>startSolo("calc");
 $("goRank").onclick=()=>{go("vRank","rangliste");renderRank();};
 $("goMe").onclick=()=>openProfile(me);
 $("goDuels").onclick=()=>{go("vDuels","duelle");renderDuelList();};
 $("goLive").onclick=()=>{go("vLive","live"); $("joinMsg").textContent=""; watchOpenRooms();};
+/* ---------- Runde zusammenstellen: Modus + Themen ---------- */
+const cfg={mode:"normal",sel:new Set()};
+const CFG_MODES=[["normal","▶ Normal"],["endlos","♾️ Endlos"],["blitz","⚡ Blitz"],["pruefung","📝 Klausur"],["calc","🧮 Nur Rechnen"],["wrong","❌ Falsche"]];
+function openCfg(mode,all){ cfg.mode=mode; cfg.sel=new Set(all?TOPICS.map((_,i)=>i):[]); go("vTopics","themen"); renderTopics(); }
+function cfgArgs(){   // → [Modus/Thema für startSolo, Themen-Set oder null]
+  const ts=new Set([...cfg.sel].filter(i=>i<TOPICS.length)), all=ts.size===TOPICS.length, m=cfg.mode;
+  if(m==="normal") return ts.size===1?[String([...ts][0]),null]:all?["mix",null]:["mix",ts];
+  return [m, all?null:ts];
+}
+$("selAll").onclick=()=>{ cfg.sel=new Set(TOPICS.map((_,i)=>i)); renderTopics(); };
+$("selNone").onclick=()=>{ cfg.sel=new Set(); renderTopics(); };
+$("cfgStart").onclick=()=>{ const [t,ts]=cfgArgs(); if(cfg.sel.size) startSolo(t,ts); };
 function renderTopics(){
   const r=myRank()||{};
+  cfg.sel=new Set([...cfg.sel].filter(i=>i<TOPICS.length));
+  $("modeChips").innerHTML=CFG_MODES.map(([v,l])=>`<button role="radio" aria-checked="${cfg.mode===v}" class="${cfg.mode===v?"sel":""}" data-m="${v}">${l}</button>`).join("");
+  $("modeChips").querySelectorAll("button").forEach(b=>b.onclick=()=>{ cfg.mode=b.dataset.m; renderTopics(); });
+  const n=cfg.sel.size; let len=0;
+  if(n){ const [t,ts]=cfgArgs(); len=pickRound(t,null,ts).length; }
+  $("cfgStart").disabled=!n||!len;
+  $("cfgInfo").textContent= !n ? "Bitte mindestens ein Thema ankreuzen." : !len ? "Keine passenden Fragen in dieser Auswahl – anderen Modus oder mehr Themen wählen."
+    : `${topicLabel(cfg.mode==="normal"?"mix":cfg.mode).replace("🎯 Gemischt","▶ Normal")} · ${n} ${n===1?"Thema":"Themen"} · ${len} Fragen`+(n<TOPICS.length&&!(cfg.mode==="normal"&&n===1)?" · eigene Auswahl: zählt in die Statistik, nicht als Bestwert":"");
   $("topicList").innerHTML=TOPICS.map((t,i)=>{const qs=Q.filter(q=>q.t===i), s=qs.filter(q=>progress.seen[q.id]).length;
     const best=((r.topics||{})[tkey(i)]||{}).best;
-    return `<div class="trow"><button data-t="${i}"><span><b>${esc(t)}</b><br><span class="muted small">${qs.length} Fragen · ${s} gesehen${best!=null?` · Bestwert ${fmt(best)} P`:""}</span></span><span>›</span></button><button class="eye" data-cat="${i}" aria-label="Alle Fragen zu ${esc(t)} ansehen"><span style="font-size:1.2rem">👁</span><span class="small">Fragen</span></button></div>`}).join("");
-  $("topicList").querySelectorAll("button[data-t]").forEach(b=>b.onclick=()=>startSolo(b.dataset.t));
+    const on=cfg.sel.has(i);
+    return `<div class="trow"><button data-t="${i}" class="${on?"on":""}" role="checkbox" aria-checked="${on}"><span class="ck">${on?"☑":"☐"}</span><span style="flex:1"><b>${esc(t)}</b><br><span class="muted small">${qs.length} Fragen · ${s} gesehen${best!=null?` · Bestwert ${fmt(best)} P`:""}</span></span></button><button class="eye" data-cat="${i}" aria-label="Alle Fragen zu ${esc(t)} ansehen"><span style="font-size:1.2rem">👁</span><span class="small">Fragen</span></button></div>`}).join("");
+  $("topicList").querySelectorAll("button[data-t]").forEach(b=>b.onclick=()=>{ const i=+b.dataset.t; if(cfg.sel.has(i)) cfg.sel.delete(i); else cfg.sel.add(i); renderTopics(); });
   $("topicList").querySelectorAll("button[data-cat]").forEach(b=>b.onclick=()=>openCatalog(+b.dataset.cat));
 }
 /* ---------- Alle Fragen eines Themas ansehen ---------- */
@@ -369,10 +392,11 @@ $("actBtn").onclick=()=>{ if(!cur) return; if(!cur.answered) submit(false); else
 function stopQuiz(){ if(cur) clearInterval(cur.timerId); cur=null; solo=null; $("pauseOv").classList.add("hidden"); $("prevBtn").classList.add("hidden"); $("peekOv").classList.add("hidden"); }
 
 /* ================= SOLO ================= */
-let solo=null, lastSoloTopic="mix";
-function startSolo(topic){
-  LS.set(G+"nick",nick()); lastSoloTopic=topic;
-  solo={topic, ids:pickRound(topic), idx:0, score:0, res:[], seed:newSeed()};
+let solo=null, lastSoloTopic="mix", lastSoloSet=null;
+function startSolo(topic,tset){
+  LS.set(G+"nick",nick()); lastSoloTopic=topic; lastSoloSet=tset||null;
+  const ids=pickRound(topic,null,tset||null); if(!ids.length) return;
+  solo={topic, tset:tset||null, ids, idx:0, score:0, res:[], seed:newSeed()};
   location.hash="solo"; soloQ();
 }
 function soloQ(){
@@ -437,13 +461,13 @@ async function soloEnd(){
   const s=solo; s.done=true; $("prevBtn").classList.add("hidden"); go("vEnd","ergebnis");
   $("endWrong").textContent=`❌ Falsche nochmal üben (${wrongQs().length})`; $("endWrong").classList.toggle("hidden",!wrongQs().length);
   const right=s.res.filter(r=>r.frac===1).length, max=s.ids.length*150;
-  $("endMode").textContent = topicLabel(s.topic);
-  $("endScore").textContent=fmt(s.score)+" P"; $("endDetail").textContent= s.topic==="endlos" ? `${right} richtig in Folge 🔥 (von ${s.ids.length} Fragen im Fach)` : `${right}/${s.ids.length} komplett richtig · max. ${fmt(max)} P`;
+  $("endMode").textContent = topicLabel(s.topic) + (s.tset ? " · "+(s.tset.size===1?TOPICS[[...s.tset][0]]:s.tset.size+" Themen") : "");
+  $("endScore").textContent=fmt(s.score)+" P"; $("endDetail").textContent= s.topic==="endlos" ? `${right} richtig in Folge 🔥 (von ${s.ids.length} Fragen${s.tset?" in deiner Auswahl":" im Fach"})` : `${right}/${s.ids.length} komplett richtig · max. ${fmt(max)} P`;
   renderTopicStats(s.res,$("topicBox")); renderReview(s.res,$("reviewBox"));
   $("copyState").textContent=""; $("saveState").textContent= BE.ok?"Wird in der Rangliste gespeichert …":"Offline – nicht in der Rangliste gespeichert.";
   let newBest=false;
   const ok=await saveRank(d=>{
-    if(s.topic!=="wrong"){   // „Falsche nochmal“ zählt nur in die Statistik, nicht als Bestwert
+    if(s.topic!=="wrong" && !s.tset){   // eigene Themen-Auswahl: nur Statistik   // „Falsche nochmal“ zählt nur in die Statistik, nicht als Bestwert
       const k=s.topic==="mix"?null:tkey(s.topic); const prev=(k?d.topics[k]:d.mix)||{};
       newBest = s.score>(Number(prev.best)||0);
       const entry={best:Math.max(Number(prev.best)||0,s.score),last:s.score,runs:(Number(prev.runs)||0)+1};
@@ -451,7 +475,8 @@ async function soloEnd(){
     }
     addStats(d,s.res); d.games=(d.games||0)+1;
   });
-  if(ok) $("saveState").textContent = newBest ? "🏆 Neuer Bestwert in der Rangliste!" : "✓ In der Rangliste gespeichert.";
+  if(ok && s.tset) $("saveState").textContent="✓ In der Statistik gespeichert (eigene Auswahl – kein Bestwert).";
+  else if(ok) $("saveState").textContent = newBest ? "🏆 Neuer Bestwert in der Rangliste!" : "✓ In der Rangliste gespeichert.";
   else if(BE.ok) $("saveState").textContent="Speichern hat nicht geklappt – Internet prüfen.";
   confetti(newBest?260:140);
 }
@@ -469,7 +494,7 @@ function renderReview(res,el){
   el.innerHTML= wrong.length? wrong.map(r=>{const q=resQ(r);
     return `<div class="review"><span class="chip">${esc(TOPICS[q.t])}</span><p style="margin:6px 0"><b>${esc(q.q)}</b></p><p class="small" style="margin:0 0 4px"><b style="color:var(--ok)">Lösung:</b> ${esc(solText(q))}</p><p class="small muted" style="margin:0">${esc(q.e)}</p></div>`}).join("") : "<p>Keine Fehler – stark! 💪</p>";
 }
-$("againBtn").onclick=()=>startSolo(lastSoloTopic);
+$("againBtn").onclick=()=>startSolo(lastSoloTopic,lastSoloSet);
 $("homeBtn").onclick=()=>{location.hash="";};
 $("podHome").onclick=()=>{location.hash="";};
 $("copyBtn").onclick=()=>shareText(`⚔️ ${APP} · ${FACH.kurzname} (${$("endMode").textContent}): ${nick()} hat ${$("endScore").textContent} – ${$("endDetail").textContent}. Schlag mich! 😎 ${BASE}`,$("copyState"));
