@@ -11,6 +11,7 @@ const Q = window.Q, TOPICS = window.TOPICS;
 const QBY = {}; Q.forEach(q=>QBY[q.id]=q);
 const $ = id => document.getElementById(id);
 const esc = s => String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const pl = (n,one,many) => fmt(n)+" "+(Math.round(Number(n)||0)===1?one:many);
 const fmt = n => Math.round(Number(n)||0).toLocaleString("de-DE");
 const LS = {get(k){try{return localStorage.getItem(k)}catch(e){return null}},set(k,v){try{localStorage.setItem(k,v)}catch(e){}}};
 const shuffle = (a,rnd=Math.random) => {a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(rnd()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a};
@@ -319,12 +320,12 @@ $("rankSel").innerHTML=RANKMODES.map(([v,l])=>`<option value="${v}">${esc(l)}</o
 $("rankSel").onchange=renderRank;
 function rankList(mode){
   const rows=rankRows.filter(r=>r.nick);
-  if(mode==="total") return rows.filter(r=>r.total>0).sort((a,b)=>b.total-a.total).map(r=>({r,v:fmt(r.total)+" P",sub:`${r.games||0} Runden`}));
+  if(mode==="total") return rows.filter(r=>r.total>0).sort((a,b)=>b.total-a.total).map(r=>({r,v:fmt(r.total)+" P",sub:pl(r.games||0,"Runde","Runden")}));
   if(mode==="mix") return rows.filter(r=>r.mix&&r.mix.best!=null).sort((a,b)=>b.mix.best-a.mix.best).map(r=>({r,v:fmt(r.mix.best)+" P",sub:`${r.mix.runs||1}× gespielt`}));
-  if(mode==="duel") return rows.map(r=>({r,d:duelRec(r)})).filter(x=>x.d.w+x.d.l+x.d.d>0).sort((a,b)=>b.d.w-a.d.w||a.d.l-b.d.l||b.d.d-a.d.d).map(x=>({r:x.r,v:x.d.w+" Siege",sub:`${x.d.w} S · ${x.d.d} U · ${x.d.l} N`}));
-  if(mode==="acc") return rows.map(r=>({r,a:acc(r)})).filter(x=>x.a.n>=5).sort((a,b)=>b.a.p-a.a.p||b.a.n-a.a.n).map(x=>({r:x.r,v:x.a.p+" %",sub:`${x.a.n} Antworten`}));
+  if(mode==="duel") return rows.map(r=>({r,d:duelRec(r)})).filter(x=>x.d.w+x.d.l+x.d.d>0).sort((a,b)=>b.d.w-a.d.w||a.d.l-b.d.l||b.d.d-a.d.d).map(x=>({r:x.r,v:pl(x.d.w,"Sieg","Siege"),sub:`${x.d.w} S · ${x.d.d} U · ${x.d.l} N`}));
+  if(mode==="acc") return rows.map(r=>({r,a:acc(r)})).filter(x=>x.a.n>=5).sort((a,b)=>b.a.p-a.a.p||b.a.n-a.a.n).map(x=>({r:x.r,v:x.a.p+" %",sub:pl(x.a.n,"Antwort","Antworten")}));
   if(/^t\d+$/.test(mode)) return rows.map(r=>({r,a:acc(r,mode),b:((r.topics||{})[mode]||{}).best})).filter(x=>x.a.n>=1||x.b!=null)
-    .sort((a,b)=>((b.a.n>=MINN?b.a.p:-1)-(a.a.n>=MINN?a.a.p:-1))||((b.b||0)-(a.b||0))).map(x=>({r:x.r,v:x.a.p!=null?x.a.p+" %":"–",sub:`${x.a.n} Antworten`+(x.b!=null?` · Bestwert ${fmt(x.b)} P`:"")+(x.a.n<MINN?" · noch zu wenige":"")}));
+    .sort((a,b)=>((b.a.n>=MINN?b.a.p:-1)-(a.a.n>=MINN?a.a.p:-1))||((b.b||0)-(a.b||0))).map(x=>({r:x.r,v:x.a.p!=null?x.a.p+" %":"–",sub:pl(x.a.n,"Antwort","Antworten")+(x.b!=null?` · Bestwert ${fmt(x.b)} P`:"")+(x.a.n<MINN?" · noch zu wenige":"")}));
   return [];
 }
 function rankTable(list,limit){
@@ -371,17 +372,17 @@ function renderProfile(){
   if(!r){ $("profName").textContent="Unbekannt"; return; }
   const isMe=r.id===me, a=acc(r), dr=duelRec(r);
   $("profName").textContent=(isMe?"📊 ":"👤 ")+(r.nick||"?")+(isMe?" (du)":"");
-  $("profSub").textContent=`${fmt(r.total)} Punkte · ${r.games||0} Runden · Trefferquote ${a.p!=null?a.p+" %":"–"} · Duelle ${dr.w} S / ${dr.d} U / ${dr.l} N`;
+  $("profSub").textContent=`${fmt(r.total)} Punkte · ${pl(r.games||0,"Runde","Runden")} · Trefferquote ${a.p!=null?a.p+" %":"–"} · Duelle ${dr.w} S / ${dr.d} U / ${dr.l} N`;
   $("profDuel").classList.toggle("hidden",isMe||!BE.ok||!nick());
   $("profDuel").onclick=()=>createDuel(r.id,r.nick);
   const ts=TOPICS.map((t,i)=>({t,i,a:acc(r,tkey(i))}));
   const known=ts.filter(x=>x.a.n>=MINN);
   const strong=known.slice().sort((x,y)=>y.a.p-x.a.p).filter(x=>x.a.p>=60).slice(0,3);
   const weak=known.slice().sort((x,y)=>x.a.p-y.a.p).filter(x=>x.a.p<80&&!strong.includes(x)).slice(0,3);
-  const line=x=>topicBar(x.t,x.a.p,`${x.a.n} Antworten`);
+  const line=x=>topicBar(x.t,x.a.p,pl(x.a.n,"Antwort","Antworten"));
   $("profStrong").innerHTML=strong.length?strong.map(line).join(""):`<p class="muted small">Noch nicht genug gespielt (ab ${MINN} Antworten pro Thema).</p>`;
   $("profWeak").innerHTML=weak.length?weak.map(line).join(""):`<p class="muted small">${known.length?"Keine Schwachstellen in Sicht 💪":"Noch nicht genug gespielt."}</p>`;
-  $("profTopics").innerHTML=ts.map(x=>topicBar(x.t,x.a.p,x.a.n?`${x.a.n} Antworten`+(((r.topics||{})[tkey(x.i)]||{}).best!=null?` · Bestwert ${fmt(r.topics[tkey(x.i)].best)} P`:""):"noch nicht gespielt")).join("");
+  $("profTopics").innerHTML=ts.map(x=>topicBar(x.t,x.a.p,x.a.n?pl(x.a.n,"Antwort","Antworten")+(((r.topics||{})[tkey(x.i)]||{}).best!=null?` · Bestwert ${fmt(r.topics[tkey(x.i)].best)} P`:""):"noch nicht gespielt")).join("");
 }
 function startRankWatch(){
   const to=setTimeout(()=>{ if(!rankLoaded) $("lbState").textContent="lädt langsam …"; },10000);

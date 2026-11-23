@@ -114,7 +114,7 @@ try{
   console.log("Rangliste & Profil");
   await A.click("#goRank"); await A.waitForSelector("#rankBox table");
   ok((await A.textContent("#rankBox")).includes("Anna"), "Gesamtrangliste zeigt Anna");
-  await A.selectOption("#rankSel","duel"); ok((await A.textContent("#rankBox")).includes("1 Siege"), "Duell-Rangliste zeigt Sieg");
+  await A.selectOption("#rankSel","duel"); ok((await A.textContent("#rankBox")).includes("1 Sieg"), "Duell-Rangliste zeigt Sieg");
   await A.selectOption("#rankSel","map"); ok((await A.textContent("#rankBox")).includes("👑"), "„Wer ist wo am besten?“ zeigt Themenkönig:innen");
   await A.selectOption("#rankSel","total"); await A.click("#rankBox tr[data-uid='ub']");
   await A.waitForSelector("#vProfile:not(.hidden)");
@@ -153,7 +153,8 @@ try{
   await C.goto(`${URL0}?mock=1&uid=uc`); await C.waitForSelector("#conn.on");
   await C.click("#goHot"); const ins=await C.$$("#hotNames input"); await ins[0].fill("Mia"); await ins[1].fill("Tom");
   await C.selectOption("#hotTopic","0"); await C.click("#hotStart");
-  for(let i=0;i<6;i++){ for(let p=0;p<2;p++){ await C.click("#passGo"); await answer(C,p===0); await C.click("#actBtn"); } await C.waitForSelector("#vReveal:not(.hidden)"); await C.click("#hostNext"); }
+  const nHot=await C.evaluate(()=>hot.ids.length);
+  for(let i=0;i<nHot;i++){ for(let p=0;p<2;p++){ await C.click("#passGo"); await answer(C,p===0); await C.click("#actBtn"); } await C.waitForSelector("#vReveal:not(.hidden)"); await C.click("#hostNext"); }
   await C.waitForSelector("#vPodium:not(.hidden)");
   ok((await C.textContent("#podium")).includes("Mia"), "Reihum: Siegerehrung mit Mia");
 
