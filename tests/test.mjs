@@ -40,7 +40,7 @@ try{
   await A.click("#goMix");
   for(let i=0;i<15;i++){ await answer(A,i%3!==0); await A.waitForFunction(()=>cur&&cur.answered); await A.click("#actBtn"); }
   await A.waitForSelector("#vEnd:not(.hidden)");
-  await A.waitForFunction(()=>/Rangliste/.test(document.getElementById("saveState").textContent));
+  await A.waitForFunction(()=>/✓|🏆/.test(document.getElementById("saveState").textContent));
   const rA=await A.evaluate(()=>JSON.parse(localStorage.getItem("mockdb:ranking/ua")));
   ok(rA && rA.mix && rA.mix.best>0 && rA.games===1, "Ergebnis in Rangliste gespeichert ("+(rA&&rA.total)+" P)");
   ok(Object.values(rA.st).reduce((s,v)=>s+v.n,0)===15, "15 Antworten in der Themen-Statistik");
@@ -51,7 +51,7 @@ try{
   await A.click("#goTopics"); await A.click("#topicList button[data-t='14']");
   for(let i=0;i<5;i++){ await answer(A,true); await A.click("#actBtn"); }
   await A.waitForSelector("#vEnd:not(.hidden)");
-  await A.waitForFunction(()=>/Rangliste/.test(document.getElementById("saveState").textContent));
+  await A.waitForFunction(()=>/✓|🏆/.test(document.getElementById("saveState").textContent));
   const rA2=await A.evaluate(()=>JSON.parse(localStorage.getItem("mockdb:ranking/ua")));
   ok(rA2.topics.t14 && rA2.topics.t14.best>=500, "Themen-Bestwert gespeichert ("+rA2.topics.t14.best+" P)");
   ok(rA2.st.t14.n>=5 && rA2.st.t14.s>=5, "Themen-Trefferquote BWL-Grundbegriffe = 100 %");
@@ -170,7 +170,7 @@ try{
   ok((await E.textContent("#lbMini")).includes("Test"), "Startseite zeigt Rangliste des Testfachs");
   await E.click("#goMix");
   for(let i=0;i<8;i++){ await answer(E,true); await E.waitForFunction(()=>cur&&cur.answered&&!document.getElementById("actBtn").disabled); await E.click("#actBtn"); }
-  await E.waitForSelector("#vEnd:not(.hidden)"); await E.waitForFunction(()=>/Rangliste/.test(document.getElementById("saveState").textContent));
+  await E.waitForSelector("#vEnd:not(.hidden)"); await E.waitForFunction(()=>/✓|🏆/.test(document.getElementById("saveState").textContent));
   const rE=await E.evaluate(()=>JSON.parse(localStorage.getItem("mockdb:ranking/ua")));
   ok(rE.f && rE.f.test && rE.f.test.total>=800 && rE.total===bwlBefore, "Punkte im Testfach getrennt gespeichert, BWL-Punkte unverändert");
   await E.click("#homeBtn"); await E.click("#goRank"); await E.selectOption("#rankSel","all");
@@ -188,6 +188,69 @@ try{
   ok((await E.textContent(`#duelLists button[data-id='${tdid}']`)).includes("Test"), "Duell-Liste zeigt Fach-Markierung");
   await E.click(`#duelLists button[data-id='${tdid}']`); await E.waitForSelector("#vDuel:not(.hidden)");
   ok(await E.inputValue("#fachSel")==="test" && (await E.textContent("#dvFach")).includes("Testfach"), "Öffnen wechselt automatisch ins richtige Fach");
+
+  /* ---------- 10. Schutz vor versehentlichem Abbrechen ---------- */
+  console.log("Schutz vor Abbrechen");
+  const G=await ctx.newPage(); G.on("pageerror",e=>errors.push("G: "+e.message));
+  await G.goto(`${URL0}?mock=1&uid=ug`); await G.waitForSelector("#conn.on"); await G.fill("#nick","Gina");
+  await G.click("#goMix"); await G.waitForSelector("#vQuiz:not(.hidden)"); await G.waitForTimeout(300);
+  await G.goBack(); await G.waitForSelector("#askOv:not(.hidden)");
+  ok(/abbrechen/i.test(await G.textContent("#askTitle")), "Zurück-Taste in Solo-Runde → Rückfrage „Runde abbrechen?“");
+  await G.click("#askBtns button[data-v='stay']");
+  await G.waitForTimeout(300);
+  ok(await G.isVisible("#vQuiz") && await G.evaluate(()=>!!solo&&!!cur), "„Weiterspielen“ → Runde läuft weiter");
+  await G.goBack(); await G.waitForSelector("#askOv:not(.hidden)"); await G.click("#askBtns button[data-v='leave']");
+  await G.waitForSelector("#vHome:not(.hidden)");
+  ok(await G.evaluate(()=>!solo&&!cur), "„Ja, abbrechen“ → zurück zur Startseite");
+  const blocked=await G.evaluate(()=>{ startSolo("mix"); const ev=new Event("beforeunload",{cancelable:true}); window.dispatchEvent(ev); return ev.defaultPrevented; });
+  ok(blocked, "Neu laden / Schließen während der Runde → Browser fragt nach");
+  await G.evaluate(()=>{ stopQuiz(); location.hash=""; });
+
+  /* ---------- 11. Live-Räume bleiben offen ---------- */
+  console.log("Offene Live-Räume");
+  await G.waitForSelector("#vHome:not(.hidden)"); await G.click("#goLive"); await G.click("#createRoom");
+  await G.waitForSelector("#vLobby:not(.hidden)"); const rc=(await G.textContent("#lobCode")).trim();
+  await G.click("#lobLeave"); await G.waitForSelector("#askOv:not(.hidden)");
+  ok((await G.$$("#askBtns button")).length===3, "Host verlässt Warteraum → Auswahl: bleiben / offen lassen / schließen");
+  await G.click("#askBtns button[data-v='keep']"); await G.waitForSelector("#vHome:not(.hidden)");
+  // Host ist „lange weg“: Heartbeat 2 Stunden alt
+  await G.evaluate(c=>{ const k="mockdb:rooms/"+c; const d=JSON.parse(localStorage.getItem(k)); d.hb=Date.now()-7200e3; d.wAt=Date.now()-7200e3; localStorage.setItem(k,JSON.stringify(d)); },rc);
+  const H=await open("uh","Hanna");
+  await H.click("#goLive"); await H.waitForSelector(`#openRooms button[data-c='${rc}']`);
+  ok((await H.textContent(`#openRooms button[data-c='${rc}']`)).includes("offline"), "Raum ist nach 2 Std. noch gelistet (mit Hinweis „Host gerade offline“)");
+  await H.click(`#openRooms button[data-c='${rc}']`); await H.waitForSelector("#vLobby:not(.hidden)");
+  ok(true, "Mitspielerin kann dem offenen Raum beitreten");
+  await G.click("#goLive"); await G.waitForSelector(`#openRooms button[data-c='${rc}']`);
+  ok((await G.textContent(`#openRooms button[data-c='${rc}']`)).includes("Dein Raum"), "Host sieht „Dein Raum – fortsetzen“");
+  await G.click(`#openRooms button[data-c='${rc}']`); await G.waitForSelector("#vLobby:not(.hidden) #lobStart:not(.hidden)");
+  await G.waitForFunction(()=>document.getElementById("lobCount").textContent.startsWith("2"));
+  ok(true, "Host ist zurück im Raum, Hanna ist noch da, Start-Knopf sichtbar");
+  await G.click("#lobLeave"); await G.waitForSelector("#askOv:not(.hidden)"); await G.click("#askBtns button[data-v='leave']");
+  await G.waitForSelector("#vHome:not(.hidden)");
+  await H.waitForSelector("#vLive:not(.hidden)");
+  ok(/geschlossen/.test(await H.textContent("#joinMsg")), "Host schließt den Raum → Mitspielerin wird informiert");
+  await G.click("#goLive"); await G.waitForTimeout(500);
+  ok(!(await G.$(`#openRooms button[data-c='${rc}']`)), "Geschlossener Raum verschwindet aus der Liste");
+
+  /* ---------- 12. Nur Rechnen ---------- */
+  console.log("Nur Rechnen");
+  const R=await ctx.newPage(); R.on("pageerror",e=>errors.push("R: "+e.message));
+  await R.goto(`${URL0}?mock=1&uid=ur&fach=bwl`); await R.waitForSelector("#conn.on"); await R.fill("#nick","Rita");
+  ok(await R.isVisible("#goCalc"), "BWL: Knopf „Solo · Nur Rechnen“ sichtbar");
+  await R.click("#goCalc");
+  const nCalc=await R.evaluate(()=>solo.ids.length);
+  const allNum=await R.evaluate(()=>solo.ids.every(id=>QBY[id].type==="num"));
+  ok(allNum && nCalc===12, `Runde enthält nur Rechenaufgaben (${nCalc})`);
+  for(let i=0;i<nCalc;i++){ await answer(R,true); await R.waitForFunction(()=>cur&&cur.answered&&!document.getElementById("actBtn").disabled); await R.click("#actBtn"); }
+  await R.waitForSelector("#vEnd:not(.hidden)"); await R.waitForFunction(()=>/✓|🏆/.test(document.getElementById("saveState").textContent));
+  ok((await R.textContent("#endMode")).includes("Nur Rechnen"), "Ergebnis zeigt „Nur Rechnen“");
+  const rr=await R.evaluate(()=>JSON.parse(localStorage.getItem("mockdb:ranking/ur")));
+  ok(rr.topics && rr.topics.tcalc && rr.topics.tcalc.best>=1200, "Bestwert „Nur Rechnen“ in der Rangliste gespeichert");
+  await R.click("#homeBtn"); await R.waitForSelector("#vHome:not(.hidden)");
+  await R.selectOption("#fachSel","arch");
+  ok(!(await R.isVisible("#goCalc")), "Architektur (nur 1 Rechenaufgabe): Knopf ausgeblendet");
+  await R.selectOption("#fachSel","ergo");
+  ok(await R.isVisible("#goCalc") && (await R.$$("#liveTopic option[value='calc']")).length===1, "Ergonomie: Nur Rechnen auch im Live-Battle wählbar");
 
   /* ---------- 9. Jede Frage jedes Fachs: richtige Antwort wird als richtig gewertet ---------- */
   console.log("Alle Fragen aller Fächer");

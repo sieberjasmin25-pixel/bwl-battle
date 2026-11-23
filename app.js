@@ -81,6 +81,68 @@ const VIEWS = ["vHome","vTopics","vRank","vProfile","vDuels","vDuelNew","vDuel",
 function show(v){VIEWS.forEach(x=>$(x).classList.toggle("hidden",x!==v));window.scrollTo(0,0);}
 function go(v,hash){show(v); if(hash!==undefined && location.hash.replace("#","")!==hash){ location.hash=hash; }}
 const isShown = v => !$(v).classList.contains("hidden");
+
+/* ---------- Schutz: laufende Runde nicht aus Versehen verlassen ---------- */
+// Hashes, zu denen eine laufende Runde selbst wechselt (kein Verlassen)
+const ROUND_HASHES = new Set(["solo","battle","lobby","siegerehrung","reihum-spiel","duell-spiel"]);
+function activeRound(){
+  if(typeof solo!=="undefined" && solo && !solo.done && cur) return "solo";
+  if(typeof duel!=="undefined" && duel.playing) return "duel";
+  if(typeof hot!=="undefined" && hot && !hot.done) return "hot";
+  if(typeof live!=="undefined" && live.code && live.game && live.game.status!=="end") return live.game.status==="lobby"?"lobby":"live";
+  return null;
+}
+function ask(title,text,buttons){
+  return new Promise(res=>{
+    $("askTitle").textContent=title; $("askTxt").textContent=text;
+    const box=$("askBtns"); box.innerHTML="";
+    buttons.forEach(b=>{ const el=document.createElement("button"); el.className=b.primary?"btn":"btn2"; el.textContent=b.label; el.dataset.v=b.value;
+      if(!b.primary){ el.style.background="transparent"; el.style.color="#fff"; el.style.borderColor="rgba(255,255,255,.55)"; }
+      el.onclick=()=>{ $("askOv").classList.add("hidden"); res(b.value); }; box.appendChild(el); });
+    $("askOv").classList.remove("hidden");
+    setTimeout(()=>{ const f=box.querySelector("button"); if(f) f.focus(); },30);
+  });
+}
+let lastHash=location.hash.replace("#",""), navBypass=false, asking=false;
+const HANDLED = new Set(["","start","themen","rangliste","duelle","duell","live","profil"]);
+window.addEventListener("hashchange",e=>{
+  const h=location.hash.replace("#","");
+  if(navBypass){ navBypass=false; lastHash=h; return; }
+  const kind=activeRound();
+  if(kind && !ROUND_HASHES.has(h) && h!==lastHash){
+    e.stopImmediatePropagation();
+    navBypass=true; location.hash=lastHash;      // erst mal zurück in die Runde
+    confirmLeave(kind,h); return;
+  }
+  lastHash=h;
+});
+async function confirmLeave(kind,target){
+  if(asking) return; asking=true;
+  let choice;
+  try{
+    if(kind==="lobby" && live.isHost){
+      choice=await ask("Warteraum verlassen?","Du bist Host. Lass den Raum offen und komm später über „Live-Battle“ zurück – oder schließ ihn für alle.",
+        [{label:"Hier bleiben",value:"stay",primary:true},{label:"Raum offen lassen",value:"keep"},{label:"Raum schließen",value:"leave"}]);
+    } else {
+      const t={solo:["Runde abbrechen?","Diese Runde wird dann nicht gewertet."],
+        duel:["Duell-Runde unterbrechen?","Die gerade offene Frage zählt dann als falsch. Den Rest der Runde kannst du später weiterspielen."],
+        hot:["Runde abbrechen?","Der Spielstand von allen geht verloren."],
+        live:["Live-Battle verlassen?", live.isHost?"Du bist Host – das Battle endet dann für alle.":"Du kannst später mit demselben Namen wieder beitreten, deine Punkte bleiben."],
+        lobby:["Warteraum verlassen?","Du kannst später wieder beitreten."]}[kind];
+      choice=await ask(t[0],t[1],[{label:"Weiterspielen",value:"stay",primary:true},{label:kind==="duel"?"Unterbrechen":"Ja, abbrechen",value:"leave"}]);
+    }
+  } finally{ asking=false; }
+  if(choice==="stay") return;
+  if(kind==="solo"){ stopQuiz(); }
+  else if(kind==="hot"){ hot=null; stopQuiz(); }
+  else if(kind==="duel"){ stopQuiz(); duel.playing=null; }
+  else { leaveLive({keepOpen:choice==="keep"}); }
+  if(!HANDLED.has(target) || (target==="duell"&&!duel.openId)) target="";
+  location.hash=target;
+  if(location.hash.replace("#","")===target && target===""){ show("vHome"); renderHome(); }
+}
+window.addEventListener("beforeunload",e=>{ if(activeRound()){ e.preventDefault(); e.returnValue=""; } });
+
 window.addEventListener("hashchange",()=>{
   const h=location.hash.replace("#","");
   if(h===""||h==="start"){ leaveAll(); show("vHome"); renderHome(); }
@@ -88,7 +150,7 @@ window.addEventListener("hashchange",()=>{
   else if(h==="rangliste"){ show("vRank"); renderRank(); }
   else if(h==="duelle"){ stopQuiz(); duel.openId=null; duel.playing=null; show("vDuels"); renderDuelList(); }
   else if(h==="duell" && duel.openId){ stopQuiz(); duel.playing=null; show("vDuel"); renderDuel(); }
-  else if(h==="live" && !live.code){ stopQuiz(); show("vLive"); }
+  else if(h==="live" && !live.code){ stopQuiz(); show("vLive"); watchOpenRooms(); }
 });
 function leaveAll(){ hot=null; stopQuiz(); duel.openId=null; duel.playing=null; if(live.code) leaveLive(); if(live.unOpen){ live.unOpen(); live.unOpen=null; } }
 document.querySelectorAll("[data-home]").forEach(b=>b.onclick=()=>{location.hash="";});
@@ -105,11 +167,14 @@ function selectFach(kurz){
   $("appSub").textContent=FAECHER.length>1?FAECHER.length+" Fächer · lernen, duellieren, gewinnen":f.name+" · "+Q.length+" Fragen · "+TOPICS.length+" Themen";
   $("fachSel").innerHTML=FAECHER.map(x=>`<option value="${esc(x.kurz)}">${esc(x.icon||"📚")} ${esc(x.name)} · ${x.q.length} Fragen</option>`).join("");
   $("fachSel").value=f.kurz;
-  const topicOpts=`<option value="mix">🎯 Gemischt – 15 Fragen aus allen Themen</option>`+TOPICS.map((t,i)=>`<option value="${i}">📚 ${esc(t)} (${Q.filter(q=>q.t===i).length} Fragen)</option>`).join("");
+  const nCalc=Q.filter(q=>q.type==="num").length, hasCalc=nCalc>=MIN_CALC;
+  $("goCalc").classList.toggle("hidden",!hasCalc);
+  $("goCalcTxt").textContent=`Nur Rechenaufgaben – ${nCalc} Stück in diesem Fach`;
+  const topicOpts=`<option value="mix">🎯 Gemischt – 15 Fragen aus allen Themen</option>`+(hasCalc?`<option value="calc">🧮 Nur Rechnen (${nCalc} Aufgaben)</option>`:"")+TOPICS.map((t,i)=>`<option value="${i}">📚 ${esc(t)} (${Q.filter(q=>q.t===i).length} Fragen)</option>`).join("");
   $("liveTopic").innerHTML=topicOpts; $("hotTopic").innerHTML=topicOpts;
   const modes=(FAECHER.length>1?[["all","🌍 Alle Fächer · Gesamtpunkte"]]:[]).concat([
-    ["total","🏅 Gesamtpunkte "+f.kurzname],["mix","🎯 Bestwert Solo Gemischt"],["duel","⚔️ Duell-Siege"],["acc","🧠 Trefferquote gesamt"],["map","🗺️ Wer ist wo am besten?"]
-  ]).concat(TOPICS.map((t,i)=>["t"+i,"📚 "+t]));
+    ["total","🏅 Gesamtpunkte "+f.kurzname],["mix","🎯 Bestwert Solo Gemischt"]].concat(hasCalc?[["calc","🧮 Bestwert Nur Rechnen"]]:[]).concat([["duel","⚔️ Duell-Siege"],["acc","🧠 Trefferquote gesamt"],["map","🗺️ Wer ist wo am besten?"]
+  ])).concat(TOPICS.map((t,i)=>["t"+i,"📚 "+t]));
   const old=$("rankSel").value;
   $("rankSel").innerHTML=modes.map(([v,l])=>`<option value="${v}">${esc(l)}</option>`).join("");
   if(modes.some(m=>m[0]===old)) $("rankSel").value=old;
@@ -118,7 +183,10 @@ function selectFach(kurz){
 }
 function markSeen(id,ok){ progress.seen[id]=(progress.seen[id]||0)+1; if(!ok) progress.wrong[id]=(progress.wrong[id]||0)+1; else if(progress.wrong[id]) progress.wrong[id]=Math.max(0,progress.wrong[id]-1); LS.set(P+"progress",JSON.stringify(progress)); }
 function rankQ(q){ const s=progress.seen[q.id]||0, w=progress.wrong[q.id]||0; return s*10 - w*4 + Math.random()*3; }
+const MIN_CALC = 3;   // ab so vielen Rechenaufgaben gibt es den Modus „Nur Rechnen“
+function topicLabel(topic,f){ f=f||FACH; return topic==="mix"?"🎯 Gemischt":topic==="calc"?"🧮 Nur Rechnen":"📚 "+(f.topics[+topic]||""); }
 function pickRound(topic){
+  if(topic==="calc") return shuffle(Q.filter(q=>q.type==="num").sort((a,b)=>rankQ(a)-rankQ(b)).slice(0,ROUND).map(q=>q.id));
   if(topic!=="mix"){ const t=+topic; return shuffle(Q.filter(q=>q.t===t).sort((a,b)=>rankQ(a)-rankQ(b)).slice(0,ROUND).map(q=>q.id)); }
   const chosen=[]; const used=new Set();
   shuffle(TOPICS.map((_,i)=>i)).forEach(t=>{const c=Q.filter(q=>q.t===t).sort((a,b)=>rankQ(a)-rankQ(b))[0]; if(c&&chosen.length<ROUND){chosen.push(c.id);used.add(c.id);}});
@@ -146,6 +214,7 @@ function renderHome(){
 function setConn(state,text){ const c=$("conn"); c.className="status "+state; c.lastChild.textContent=text; }
 $("goMix").onclick=()=>startSolo("mix");
 $("goTopics").onclick=()=>{go("vTopics","themen");renderTopics();};
+$("goCalc").onclick=()=>startSolo("calc");
 $("goRank").onclick=()=>{go("vRank","rangliste");renderRank();};
 $("goMe").onclick=()=>openProfile(me);
 $("goDuels").onclick=()=>{go("vDuels","duelle");renderDuelList();};
@@ -269,9 +338,9 @@ $("resumeBtn").onclick=()=>{
 };
 async function soloEnd(){
   if(cur) clearInterval(cur.timerId);
-  const s=solo; go("vEnd","ergebnis");
+  const s=solo; s.done=true; go("vEnd","ergebnis");
   const right=s.res.filter(r=>r.frac===1).length, max=s.ids.length*150;
-  $("endMode").textContent = s.topic==="mix" ? "🎯 Gemischt" : "📚 "+TOPICS[+s.topic];
+  $("endMode").textContent = topicLabel(s.topic);
   $("endScore").textContent=fmt(s.score)+" P"; $("endDetail").textContent=`${right}/${s.ids.length} komplett richtig · max. ${fmt(max)} P`;
   renderTopicStats(s.res,$("topicBox")); renderReview(s.res,$("reviewBox"));
   $("copyState").textContent=""; $("saveState").textContent= BE.ok?"Wird in der Rangliste gespeichert …":"Offline – nicht in der Rangliste gespeichert.";
@@ -345,6 +414,7 @@ function rankList(mode){
     .filter(x=>x.t>0).sort((a,b)=>b.t-a.t).map(x=>({r:x.r,v:fmt(x.t)+" P",sub:x.parts.map(p=>p.f.kurzname+" "+fmt(p.t)).join(" · ")}));
   const rows=rankRows.filter(r=>r.nick);
   if(mode==="total") return rows.filter(r=>r.total>0).sort((a,b)=>b.total-a.total).map(r=>({r,v:fmt(r.total)+" P",sub:pl(r.games||0,"Runde","Runden")}));
+  if(mode==="calc") return rows.filter(r=>r.topics.tcalc&&r.topics.tcalc.best!=null).sort((a,b)=>b.topics.tcalc.best-a.topics.tcalc.best).map(r=>({r,v:fmt(r.topics.tcalc.best)+" P",sub:`${r.topics.tcalc.runs||1}× gespielt`}));
   if(mode==="mix") return rows.filter(r=>r.mix&&r.mix.best!=null).sort((a,b)=>b.mix.best-a.mix.best).map(r=>({r,v:fmt(r.mix.best)+" P",sub:`${r.mix.runs||1}× gespielt`}));
   if(mode==="duel") return rows.map(r=>({r,d:duelRec(r)})).filter(x=>x.d.w+x.d.l+x.d.d>0).sort((a,b)=>b.d.w-a.d.w||a.d.l-b.d.l||b.d.d-a.d.d).map(x=>({r:x.r,v:pl(x.d.w,"Sieg","Siege"),sub:`${x.d.w} S · ${x.d.d} U · ${x.d.l} N`}));
   if(mode==="acc") return rows.map(r=>({r,a:acc(r)})).filter(x=>x.a.n>=5).sort((a,b)=>b.a.p-a.a.p||b.a.n-a.a.n).map(x=>({r:x.r,v:x.a.p+" %",sub:pl(x.a.n,"Antwort","Antworten")}));
@@ -371,7 +441,7 @@ function renderRank(){
   const mode=$("rankSel").value, box=$("rankBox");
   const hints={all:"Alle Punkte aus allen Fächern zusammen.",total:"Alle Punkte in diesem Fach aus Solo-Runden, Duellen und Live-Battles.",mix:"Bester Punktestand in einer Solo-Runde „Gemischt“ (15 Fragen).",
     duel:"Gewonnene Duelle. S = Sieg, U = Unentschieden, N = Niederlage.",acc:"Anteil richtiger Antworten über alle Modi (ab 5 Antworten).",
-    map:"Für jedes Thema: wer die höchste Trefferquote hat (ab "+MINN+" Antworten im Thema)."};
+    map:"Für jedes Thema: wer die höchste Trefferquote hat (ab "+MINN+" Antworten im Thema).",calc:"Bester Punktestand in einer Solo-Runde „Nur Rechnen“."};
   $("rankHint").textContent= hints[mode] || "Trefferquote in diesem Thema über alle Modi – Bestwert = beste Solo-Runde in diesem Thema.";
   if(!BE.ok){ box.innerHTML=`<p class="muted">Keine Verbindung zur Rangliste.</p>`; return; }
   if(mode==="map"){
@@ -669,9 +739,11 @@ const live={code:null,gid:null,isHost:false,game:null,players:[],skew:0,lastW:0,
   hostTimer:null,hbTimer:null,unG:null,unP:null,seenLocal:{},lastSig:{},lastGameAt:0,saved:false,unOpen:null};
 function watchOpenRooms(){
   if(live.unOpen) live.unOpen();
-  live.unOpen=BE.onQuery("rooms",[["status","==","lobby"]],20,rows=>{
-    const fresh=rows.filter(r=>Date.now()-(r.hb||r.wAt||0)<90000).sort((a,b)=>(b.wAt||0)-(a.wAt||0));
-    $("openRooms").innerHTML=fresh.length?`<p class="muted small" style="margin:0 0 8px">Offene Räume:</p><div class="dlist">`+fresh.map(r=>{const f=fachBy(r.fach);return `<button data-c="${esc(r.code)}"><span><b>${esc(r.hostNick||"?")}</b> · Raum ${esc(r.code)}<br><span class="st">${esc(f.icon||"")} ${esc(f.kurzname)} · ${r.topic==="mix"?"🎯 Gemischt":"📚 "+esc(f.topics[+r.topic]||"")}</span></span><span>Beitreten ›</span></button>`;}).join("")+`</div><div style="height:12px"></div><p class="muted small" style="margin:0 0 8px">Oder Code eingeben:</p>`:"";
+  // Räume im Warteraum bleiben gelistet, bis der Host sie schließt oder das Spiel startet
+  live.unOpen=BE.onQuery("rooms",[["status","==","lobby"]],50,rows=>{
+    const fresh=rows.slice().sort((a,b)=>((b.host===me)-(a.host===me))||((b.wAt||0)-(a.wAt||0)));
+    $("openRooms").innerHTML=fresh.length?`<p class="muted small" style="margin:0 0 8px">Offene Räume:</p><div class="dlist">`+fresh.map(r=>{const f=fachBy(r.fach); const mine=r.host===me; const off=!mine&&Date.now()-(r.hb||r.wAt||0)>90000;
+      return `<button data-c="${esc(r.code)}"><span><b>${mine?"⭐ Dein Raum":esc(r.hostNick||"?")}</b> · Raum ${esc(r.code)}<br><span class="st">${esc(f.icon||"")} ${esc(f.kurzname)} · ${esc(topicLabel(r.topic,f))}${off?" · Host gerade offline":""}</span></span><span>${mine?"Fortsetzen ›":"Beitreten ›"}</span></button>`;}).join("")+`</div><div style="height:12px"></div><p class="muted small" style="margin:0 0 8px">Oder Code eingeben:</p>`:"";
     $("openRooms").querySelectorAll("button").forEach(b=>b.onclick=()=>joinRoom(b.dataset.c));
   });
 }
@@ -684,7 +756,7 @@ $("createRoom").onclick=async()=>{
     for(let tries=0;tries<8;tries++){
       const code=String(1000+Math.floor(Math.random()*9000));
       const ex=await BE.get("rooms/"+code);
-      if(ex && Date.now()-(ex.hb||ex.wAt||0)<6*3600e3) continue;
+      if(ex && (ex.status==="lobby" || Date.now()-(ex.wAt||0)<6*3600e3)) continue;  // offene Räume nie überschreiben
       const gid=Math.random().toString(36).slice(2,10);
       const g={fach:FACH.kurz,code,gid,host:me,hostNick:nick(),topic:$("liveTopic").value,status:"lobby",qids:[],orders:{},idx:-1,endsAt:0,pausedLeft:null,wAt:Date.now(),hb:Date.now()};
       await BE.set("rooms/"+code,g);
@@ -702,7 +774,7 @@ async function joinRoom(code){
   liveMsg("Verbinde …"); $("joinRoom").disabled=true;
   try{
     const g=await BE.get("rooms/"+code);
-    if(!g||g.status==="closed"||Date.now()-(g.hb||g.wAt||0)>120000){ liveMsg("Kein offener Raum mit diesem Code gefunden."); return; }
+    if(!g||g.status==="closed"){ liveMsg("Kein offener Raum mit diesem Code gefunden."); return; }
     if(g.status==="end"){ liveMsg("Dieses Battle ist schon vorbei."); return; }
     selectFach(g.fach);
     live.code=code; live.gid=g.gid; live.isHost=g.host===me;
@@ -736,12 +808,14 @@ function enterLive(){
     BE.update(myPlayerPath(),{seen:Date.now()}).catch(()=>{});
     if(live.isHost) BE.update(roomPath(),{hb:Date.now()}).catch(()=>{});
     else if(Date.now()-live.lastGameAt>35000 && live.game && live.game.status!=="end") showHostGone();
+    if(live.isHost) live.lastGameAt=Date.now();
   },8000);
   if(live.isHost){ clearInterval(live.hostTimer); live.hostTimer=setInterval(hostLoop,500); }
 }
 function showHostGone(){
   const t="⚠️ Der Host ist gerade nicht erreichbar. Warte kurz – oder verlasse den Raum über ‹ Zurück.";
   $("liveWaitTxt").textContent=t; $("rvWaitTxt").textContent=t;
+  $("lobWaitTxt").textContent="Der Host ist gerade nicht online – der Raum bleibt offen. Sobald der Host zurück ist, kann's losgehen.";
 }
 function playerOn(p){ if(p.left) return false; if(p.id===me) return true; return Date.now()-(live.seenLocal[p.id]||0)<STALE; }
 function lostHost(text){
@@ -749,18 +823,19 @@ function lostHost(text){
   if(g&&g.status==="end") return;
   go("vLive","live"); liveMsg(text); watchOpenRooms();
 }
-function leaveLive(){
+function leaveLive(opts){
+  const keepOpen=!!(opts&&opts.keepOpen);   // Host verlässt den Warteraum, Raum bleibt offen
   const code=live.code, wasHost=live.isHost, g=live.game;
   clearInterval(live.hostTimer); clearInterval(live.hbTimer);
   if(live.unG) live.unG(); if(live.unP) live.unP();
-  if(code && BE.ok){
+  if(code && BE.ok && !keepOpen){
     BE.update("rooms/"+code+"/players/"+me,{left:true}).catch(()=>{});
     if(wasHost && g && g.status!=="end") BE.update("rooms/"+code,{status:"closed",wAt:Date.now()}).catch(()=>{});
   }
   Object.assign(live,{code:null,gid:null,isHost:false,game:null,players:[],shownIdx:-1,phase:null,myAns:{},myScore:0,unG:null,unP:null,lastW:0});
   if(cur) clearInterval(cur.timerId); cur=null; $("pauseOv").classList.add("hidden");
 }
-$("lobLeave").onclick=()=>{ leaveLive(); location.hash=""; };
+$("lobLeave").onclick=()=>{ if(live.isHost){ confirmLeave("lobby",""); return; } leaveLive(); location.hash=""; };
 const localDeadline = g => live.isHost ? g.endsAt : g.endsAt - live.skew;
 function sortedPlayers(){ return live.players.filter(p=>!p.left||(p.score||0)>0).slice().sort((a,b)=>(b.score||0)-(a.score||0)); }
 function hostWrite(patch){ const g=Object.assign({},live.game,patch,{wAt:Date.now()}); live.game=g; onGame(); return BE.update(roomPath(),Object.assign({},patch,{wAt:g.wAt})).catch(e=>console.warn(e)); }
@@ -778,11 +853,14 @@ function onGame(){
   const isH=live.isHost;
   if(g.status==="lobby"){
     if(location.hash!=="#lobby") go("vLobby","lobby"); else show("vLobby");
-    $("lobCode").textContent=g.code; $("lobTopic").textContent=FACH.kurzname+" · "+(g.topic==="mix"?"🎯 Gemischt – 15 Fragen":"📚 "+TOPICS[+g.topic])+" · Host: "+(g.hostNick||"");
+    $("lobCode").textContent=g.code; $("lobTopic").textContent=FACH.kurzname+" · "+topicLabel(g.topic)+" · Host: "+(g.hostNick||"");
     const link=BASE+"?raum="+g.code, txt=`🔴 Live-Battle im ${APP} (${FACH.kurzname})! Komm in Raum ${g.code}: ${link}`;
     $("lobShare").innerHTML=`<a class="btn" style="display:grid;place-items:center;text-decoration:none;border-radius:12px;min-height:48px" href="${esc(waLink(txt))}" target="_blank" rel="noopener">WhatsApp</a><button class="btn2" id="lobCopy">Link kopieren</button>`;
     $("lobCopy").onclick=()=>shareText(txt,null);
-    $("lobStart").classList.toggle("hidden",!isH); $("lobWait").classList.toggle("hidden",isH); onPlayers(); return;
+    $("lobStart").classList.toggle("hidden",!isH); $("lobWait").classList.toggle("hidden",isH);
+    $("lobLeave").textContent= isH ? "Warteraum verlassen / Raum schließen" : "Raum verlassen";
+    if(!isH && Date.now()-(g.hb||g.wAt||0)<35000) $("lobWaitTxt").textContent="Warte, bis der Host startet …";
+    onPlayers(); return;
   }
   if(g.status==="q"){
     const q=QBY[g.qids[g.idx]];
@@ -947,6 +1025,7 @@ function hotReveal(){
 }
 function hotNext(){ hot.qi++; hot.pi=0; hot.curRes=[]; if(hot.qi<hot.ids.length) hotPass(); else hotEnd(); }
 function hotEnd(){
+  hot.done=true;
   show("vPodium"); if(location.hash!=="#siegerehrung") location.hash="siegerehrung";
   const ps=hot.names.map((n,i)=>({nick:n,score:hot.scores[i]})).sort((a,b)=>b.score-a.score);
   const cell=(x,cls,place)=>x?`<div class="${cls}">${place}<br>${esc(x.nick)}<small>${fmt(x.score)} P</small></div>`:`<div class="${cls}" style="opacity:.25">${place}</div>`;

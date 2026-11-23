@@ -116,6 +116,7 @@ canvas#conf{position:fixed;inset:0;pointer-events:none;z-index:60}
   </div>
   <div class="btnrow">
     <button class="mode needname" id="goMix"><span class="ic">🎯</span><div><b>Solo · Gemischt</b><span>15 Fragen aus allen Themen, bevorzugt welche, die du noch nicht hattest</span></div></button>
+    <button class="mode needname" id="goCalc"><span class="ic">🧮</span><div><b>Solo · Nur Rechnen</b><span id="goCalcTxt">Nur Rechenaufgaben aus allen Themen</span></div></button>
     <button class="mode needname" id="goTopics"><span class="ic">📚</span><div><b>Solo · Nach Thema</b><span>Ein Thema gezielt üben, mit eigener Rangliste pro Thema</span></div></button>
     <button class="mode needname needonline" id="goDuels"><span class="ic">⚔️</span><div><b>Duelle</b><span>1 gegen 1 wie Quizduell: 6 Runden à 3 Fragen, jede:r spielt, wann sie/er Zeit hat</span></div><span class="badge hidden" id="duelBadge"></span></button>
     <button class="mode needname needonline" id="goLive"><span class="ic">🔴</span><div><b>Live-Battle</b><span>Viele Handys gleichzeitig: Raum erstellen oder beitreten, wie Kahoot</span></div></button>
@@ -252,7 +253,7 @@ canvas#conf{position:fixed;inset:0;pointer-events:none;z-index:60}
     <div class="players" id="lobPlayers"></div>
   </div>
   <button class="btn" id="lobStart">Battle starten</button>
-  <div class="wait card" id="lobWait"><span class="dot"></span><span>Warte, bis der Host startet …</span></div>
+  <div class="wait card" id="lobWait"><span class="dot"></span><span id="lobWaitTxt">Warte, bis der Host startet …</span></div>
   <div style="height:10px"></div>
   <button class="btn2" id="lobLeave">Raum verlassen</button>
 </section>
@@ -347,6 +348,13 @@ canvas#conf{position:fixed;inset:0;pointer-events:none;z-index:60}
   <div class="card" id="passBoard"></div>
 </section>
 
+</div>
+
+<div class="pauseov hidden" id="askOv" role="dialog" aria-modal="true" aria-labelledby="askTitle" style="z-index:55">
+  <div style="font-size:3rem">⚠️</div>
+  <h2 style="color:#fff;margin:0" id="askTitle"></h2>
+  <p style="margin:0;opacity:.85;max-width:420px" id="askTxt"></p>
+  <div class="btnrow" style="width:100%;max-width:320px" id="askBtns"></div>
 </div>
 
 <div class="pauseov hidden" id="pauseOv">
