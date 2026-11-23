@@ -164,7 +164,7 @@ try{
   await E.addInitScript(()=>{ const q=[]; for(let i=0;i<8;i++) q.push({id:"x"+i,t:i%2,type:"mc",q:"Testfrage "+i,o:["Richtig","Falsch A","Falsch B","Falsch C"],a:0,e:"Erklärung "+i});
     window.FAECHER=[{kurz:"test",name:"Testfach",kurzname:"Test",icon:"🧪",topics:["Thema A","Thema B"],q}]; });
   await E.goto(`${URL0}?mock=1&uid=ua`); await E.waitForSelector("#conn.on"); await E.fill("#nick","Anna");
-  ok(await E.isVisible("#fachCard") && (await E.$$("#fachSel option")).length===2, "Fachauswahl mit 2 Fächern sichtbar");
+  ok(await E.isVisible("#fachCard") && (await E.$$("#fachSel option")).length>=2, "Fachauswahl mit mehreren Fächern sichtbar");
   const bwlBefore=await E.evaluate(()=>JSON.parse(localStorage.getItem("mockdb:ranking/ua")).total);
   await E.selectOption("#fachSel","test");
   ok((await E.textContent("#lbMini")).includes("Test"), "Startseite zeigt Rangliste des Testfachs");
@@ -188,6 +188,28 @@ try{
   ok((await E.textContent(`#duelLists button[data-id='${tdid}']`)).includes("Test"), "Duell-Liste zeigt Fach-Markierung");
   await E.click(`#duelLists button[data-id='${tdid}']`); await E.waitForSelector("#vDuel:not(.hidden)");
   ok(await E.inputValue("#fachSel")==="test" && (await E.textContent("#dvFach")).includes("Testfach"), "Öffnen wechselt automatisch ins richtige Fach");
+
+  /* ---------- 9. Jede Frage jedes Fachs: richtige Antwort wird als richtig gewertet ---------- */
+  console.log("Alle Fragen aller Fächer");
+  const F=await ctx.newPage(); F.on("pageerror",e=>errors.push("F: "+e.message));
+  await F.goto(`${URL0}?mock=1&uid=uf`); await F.waitForSelector("#conn.on");
+  const res=await F.evaluate(()=>{
+    const out=[];
+    for(const f of FAECHER){ selectFach(f.kurz); let n=0; const bad=[];
+      for(const q of f.q){
+        renderQuestion(q,{label:"x",score:0,canPause:false,deadline:Date.now()+60000,onDone:()=>{}});
+        if(q.type==="mc"){ cur.sel=cur.shuffled.findIndex(o=>o.i===q.a); }
+        else if(q.type==="match"){ cur.matchSel=cur.shuffled.map(it=>it.c); }
+        else { document.getElementById("numIn").value=String(q.a).replace(".",","); }
+        const r=score(); if(r.frac!==1) bad.push(q.id); n++;
+        if(!document.getElementById("qText").textContent) bad.push(q.id+"(leer)");
+        clearInterval(cur.timerId);
+      }
+      out.push({k:f.kurz,n,bad});
+    }
+    return out;
+  });
+  res.forEach(r=>ok(r.bad.length===0, `${r.k}: ${r.n} Fragen, richtige Antwort zählt überall`+(r.bad.length?" – Problem: "+r.bad.join(","):"")));
 
   ok(errors.length===0, "Keine JavaScript-Fehler"+(errors.length?": "+errors.slice(0,5).join(" | "):""));
 }catch(e){ console.error(e); fails++; }
