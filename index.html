@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#0e3b36">
-<title>BWL-Battle</title>
+<title>Gallisches Dorfduell</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚔️</text></svg>">
 <style>
 :root{--bg:#f6f4ef;--card:#fff;--ink:#1d2321;--muted:#5d6763;--line:#e3dfd6;--brand:#0e3b36;--accent:#c98a2b;
@@ -98,9 +98,14 @@ canvas#conf{position:fixed;inset:0;pointer-events:none;z-index:60}
 
 <!-- HOME -->
 <section id="vHome">
-  <h1 id="appTitle">⚔️ BWL-Battle</h1>
+  <h1 id="appTitle">⚔️ Gallisches Dorfduell</h1>
   <p class="sub" id="appSub"></p>
   <div class="card hidden" id="inviteCard"></div>
+  <div class="card" id="fachCard">
+    <label for="fachSel"><b>📚 Fach</b></label>
+    <div style="height:8px"></div>
+    <select id="fachSel" aria-label="Fach wählen"></select>
+  </div>
   <div class="card">
     <label for="nick"><b>Dein Spielername</b></label>
     <div style="height:8px"></div>
@@ -140,7 +145,7 @@ canvas#conf{position:fixed;inset:0;pointer-events:none;z-index:60}
 <!-- RANGLISTE -->
 <section id="vRank" class="hidden">
   <button class="back" data-home>‹ Start</button>
-  <h1>🏆 Rangliste</h1>
+  <h1 id="rankH">🏆 Rangliste</h1>
   <select id="rankSel" aria-label="Rangliste wählen"></select>
   <p class="muted small" id="rankHint" style="margin:8px 0 0"></p>
   <div class="card" id="rankBox"></div>
@@ -188,6 +193,7 @@ canvas#conf{position:fixed;inset:0;pointer-events:none;z-index:60}
 <!-- DUELL: ANSICHT -->
 <section id="vDuel" class="hidden">
   <button class="back" id="dvBack">‹ Duelle</button>
+  <p class="muted small" id="dvFach" style="margin:0"></p>
   <div class="card">
     <div class="vs">
       <div><div class="nm" id="dvMe"></div><div class="sc" id="dvMeSc">0</div><div class="small muted" id="dvMePt"></div></div>
@@ -350,7 +356,8 @@ canvas#conf{position:fixed;inset:0;pointer-events:none;z-index:60}
   <button class="btn" id="resumeBtn">▶ Weiter</button>
 </div>
 
-<script src="fragen.js"></script>
+<!-- Fächer: pro Fach eine Datei in faecher/ -->
+<script src="faecher/bwl.js"></script>
 <script src="firebase-config.js"></script>
 <script src="vendor/firebase-bundle.js"></script>
 <script src="app.js"></script>

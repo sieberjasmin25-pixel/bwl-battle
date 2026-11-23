@@ -158,6 +158,37 @@ try{
   await C.waitForSelector("#vPodium:not(.hidden)");
   ok((await C.textContent("#podium")).includes("Mia"), "Reihum: Siegerehrung mit Mia");
 
+  /* ---------- 8. Mehrere Fächer (zweites Test-Fach wird eingeschleust) ---------- */
+  console.log("Mehrere Fächer");
+  const E=await ctx.newPage(); E.on("pageerror",e=>errors.push("E: "+e.message));
+  await E.addInitScript(()=>{ const q=[]; for(let i=0;i<8;i++) q.push({id:"x"+i,t:i%2,type:"mc",q:"Testfrage "+i,o:["Richtig","Falsch A","Falsch B","Falsch C"],a:0,e:"Erklärung "+i});
+    window.FAECHER=[{kurz:"test",name:"Testfach",kurzname:"Test",icon:"🧪",topics:["Thema A","Thema B"],q}]; });
+  await E.goto(`${URL0}?mock=1&uid=ua`); await E.waitForSelector("#conn.on"); await E.fill("#nick","Anna");
+  ok(await E.isVisible("#fachCard") && (await E.$$("#fachSel option")).length===2, "Fachauswahl mit 2 Fächern sichtbar");
+  const bwlBefore=await E.evaluate(()=>JSON.parse(localStorage.getItem("mockdb:ranking/ua")).total);
+  await E.selectOption("#fachSel","test");
+  ok((await E.textContent("#lbMini")).includes("Test"), "Startseite zeigt Rangliste des Testfachs");
+  await E.click("#goMix");
+  for(let i=0;i<8;i++){ await answer(E,true); await E.waitForFunction(()=>cur&&cur.answered&&!document.getElementById("actBtn").disabled); await E.click("#actBtn"); }
+  await E.waitForSelector("#vEnd:not(.hidden)"); await E.waitForFunction(()=>/Rangliste/.test(document.getElementById("saveState").textContent));
+  const rE=await E.evaluate(()=>JSON.parse(localStorage.getItem("mockdb:ranking/ua")));
+  ok(rE.f && rE.f.test && rE.f.test.total>=800 && rE.total===bwlBefore, "Punkte im Testfach getrennt gespeichert, BWL-Punkte unverändert");
+  await E.click("#homeBtn"); await E.click("#goRank"); await E.selectOption("#rankSel","all");
+  const allTxt=await E.textContent("#rankBox");
+  ok(allTxt.includes("Anna") && allTxt.includes("BWL") && allTxt.includes("Test"), "Gesamtwertung über alle Fächer");
+  // Duell im Testfach, danach aus BWL heraus öffnen
+  await E.goto(`${URL0}?mock=1&uid=ua`); await E.waitForSelector("#conn.on"); await E.fill("#nick","Anna");
+  ok(await E.inputValue("#fachSel")==="test", "Zuletzt gewähltes Fach wird gemerkt");
+  await E.click("#goDuels"); await E.click("#duelNewBtn"); await E.click("#dnLink");
+  await E.waitForSelector("#dvGo"); const tdid=await E.evaluate(()=>duel.openId);
+  ok((await E.evaluate(id=>duel.all[id].fach,tdid))==="test", "Duell gehört zum Testfach");
+  await E.click("#dvBack"); await E.click("[data-home] >> nth=0").catch(()=>{}); await E.evaluate(()=>{location.hash="";});
+  await E.waitForSelector("#vHome:not(.hidden)"); await E.selectOption("#fachSel","bwl");
+  await E.click("#goDuels"); await E.waitForSelector(`#duelLists button[data-id='${tdid}']`);
+  ok((await E.textContent(`#duelLists button[data-id='${tdid}']`)).includes("Test"), "Duell-Liste zeigt Fach-Markierung");
+  await E.click(`#duelLists button[data-id='${tdid}']`); await E.waitForSelector("#vDuel:not(.hidden)");
+  ok(await E.inputValue("#fachSel")==="test" && (await E.textContent("#dvFach")).includes("Testfach"), "Öffnen wechselt automatisch ins richtige Fach");
+
   ok(errors.length===0, "Keine JavaScript-Fehler"+(errors.length?": "+errors.slice(0,5).join(" | "):""));
 }catch(e){ console.error(e); fails++; }
 await browser.close(); server.close();

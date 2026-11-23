@@ -1,17 +1,17 @@
 // Fragenpool · Grundlagen der BWL (DHBW, Personalisierte Ernährung)
 // Quelle: Vorlesungsfolien + Klausurübersicht + Kurs-Liste der Kommiliton:innen + Karteikarten (BWL)
-window.QUIZ_META = {titel:"BWL-Battle", fach:"Grundlagen der BWL", kurz:"bwl"};
+(function(){
 // type: mc (a = Index der richtigen Option, o[0] wird beim Spielen gemischt)
 //       match (cats = Kategorien, items = [Text, Kategorie-Index])
 //       num (a = Ergebnis, tol = relative Toleranz, unit)
 // Feste IDs, damit „schon gesehen“ über Updates hinweg stimmt.
-window.TOPICS = [
+const TOPICS = [
   "Ökonomisches Prinzip","Erfolgsmaßstäbe","Managementfunktionen","Gesundheitsmarkt","Marktversagen",
   "Formalziel-Prinzipien","Rechenaufgabe 1: Wirtschaftlichkeit","Rechtsformen","Organisationsstrukturen",
   "Qualitätsmanagement","Rechenaufgabe 2: Kostenrechnung","Duale Finanzierung","Controlling-Kreislauf","Kennzahlen",
   "BWL-Grundbegriffe & Ziele"
 ];
-window.Q = [
+const Q = [
 /* ---------- Ökonomisches Prinzip (Folie 3) ---------- */
 {id:"op1",t:0,type:"mc",q:"Was beschreibt das Minimalprinzip?",
  o:["Ein festgelegtes Ziel mit möglichst geringem Mitteleinsatz erreichen","Mit gegebenen Mitteln den größtmöglichen Erfolg erzielen","Mit möglichst wenig Einsatz möglichst viel erreichen","Kosten nur decken, aber keinen Gewinn anstreben"],a:0,
@@ -411,3 +411,5 @@ window.Q = [
  o:["Wer wem unterstellt ist und wer wofür zuständig ist","In welcher Reihenfolge eine Beratung abläuft","Wie hoch das Budget im nächsten Jahr ist","Welche Rechtsform der Betrieb hat"],a:0,
  e:"Aufbauorganisation = Hierarchie und Zuständigkeiten. Linien-, Matrix- und Prozessorganisation sind Formen davon."}
 ];
+(window.FAECHER=window.FAECHER||[]).push({kurz:"bwl", name:"Grundlagen der BWL", kurzname:"BWL", icon:"📊", topics:TOPICS, q:Q});
+})();

@@ -1,6 +1,6 @@
-# ⚔️ BWL-Battle
+# ⚔️ Gallisches Dorfduell
 
-Quiz-Battle für **Grundlagen der BWL** (DHBW, Personalisierte Ernährung) – 101 Fragen in 15 Themen.
+Quiz-Battle für die Klausuren (DHBW, Personalisierte Ernährung). Fächer: **Grundlagen der BWL** (102 Fragen, 15 Themen) – weitere folgen.
 
 **Spielen:** https://sieberjasmin25-pixel.github.io/bwl-battle/
 
@@ -14,11 +14,11 @@ Kein Konto, keine Anmeldung: Link öffnen, Namen eingeben, los. Das Handy merkt 
 - 👥 **Ein Handy, reihum** – 2–6 Leute an einem Gerät
 
 ## Rangliste
-Gemeinsam für alle: Gesamtpunkte, Bestwert Gemischt, Duell-Siege, Trefferquote gesamt und pro Thema,
+Pro Fach und als Gesamtwertung über alle Fächer. Gemeinsam für alle: Gesamtpunkte, Bestwert Gemischt, Duell-Siege, Trefferquote gesamt und pro Thema,
 „Wer ist wo am besten?“ und ein Profil pro Person mit Stärken und Schwächen.
 
 ## Technik (für später)
-- `index.html`, `app.js` – die App · `fragen.js` – Fragenpool · `firebase-config.js` – Firebase-Projekt
+- `index.html`, `app.js` – die App · `faecher/<kurz>.js` – ein Fragenpool pro Fach · `firebase-config.js` – Firebase-Projekt
 - Speicher: Firebase Firestore (kostenloser Spark-Plan), anonyme Anmeldung. Regeln: `firestore.rules`
 - Online über GitHub Pages (Branch `main`, Ordner `/`)
 - Tests: `node tests/test.mjs` (Test-Modus, alle Spielmodi) · `node tests/smoke-firebase.mjs` (echte Datenbank)

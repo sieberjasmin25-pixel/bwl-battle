@@ -1,14 +1,14 @@
 "use strict";
 /* =====================================================================
-   BWL-Battle – Solo, Duelle (wie Quizduell), Live-Battle, Reihum,
-   gemeinsame Rangliste. Speicher: Firebase Firestore (anonyme Anmeldung).
+   Gallisches Dorfduell – mehrere Fächer; je Fach Solo, Duelle (wie Quizduell),
+   Live-Battle, Reihum und Rangliste (+ Gesamtwertung über alle Fächer). Speicher: Firebase Firestore (anonyme Anmeldung).
    ?mock=1 → lokaler Test-Speicher (localStorage) statt Firebase.
    ===================================================================== */
-const META = Object.assign({titel:"Klausur-Battle",fach:"",kurz:"quiz"}, window.QUIZ_META||{});
-const P = "kb_"+META.kurz+"_";
-document.title = META.titel+(META.fach?" · "+META.fach:"");
-const Q = window.Q, TOPICS = window.TOPICS;
-const QBY = {}; Q.forEach(q=>QBY[q.id]=q);
+const APP = "Gallisches Dorfduell";
+const FAECHER = window.FAECHER||[];
+const G = "dorf_";                 // geräteweite Einstellungen (Name, Fach)
+let FACH=null, Q=[], TOPICS=[], QBY={}, P="kb_quiz_";   // aktuelles Fach – siehe selectFach()
+const fachBy = k => FAECHER.find(f=>f.kurz===(k||"bwl"))||FAECHER[0];
 const $ = id => document.getElementById(id);
 const esc = s => String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const pl = (n,one,many) => fmt(n)+" "+(Math.round(Number(n)||0)===1?one:many);
@@ -21,8 +21,7 @@ const SHAPES = ["▲","◆","●","■"], SHCOL = ["var(--k0)","var(--k1)","var(
 const tkey = i => "t"+i;
 const BASE = location.origin + location.pathname;
 const PARAMS = new URLSearchParams(location.search);
-$("appTitle").textContent="⚔️ "+META.titel;
-$("appSub").textContent=(META.fach?META.fach+" · ":"")+Q.length+" Fragen · "+TOPICS.length+" Themen";
+$("appTitle").textContent="⚔️ "+APP;
 
 /* ================= SPEICHER (Firebase oder Test-Speicher) ================= */
 const BE = (()=>{
@@ -96,7 +95,27 @@ document.querySelectorAll("[data-home]").forEach(b=>b.onclick=()=>{location.hash
 
 /* ================= FORTSCHRITT (schon gesehen, pro Gerät) ================= */
 let progress = {seen:{},wrong:{}};
-try{ const p=JSON.parse(LS.get(P+"progress")||"null"); if(p&&p.seen) progress=p; }catch(e){}
+/* ================= FACH WECHSELN ================= */
+function selectFach(kurz){
+  const f=fachBy(kurz); if(FACH===f) return;
+  FACH=f; Q=f.q; TOPICS=f.topics; QBY={}; Q.forEach(q=>QBY[q.id]=q); P="kb_"+f.kurz+"_";
+  LS.set(G+"fach",f.kurz);
+  progress={seen:{},wrong:{}}; try{ const p=JSON.parse(LS.get(P+"progress")||"null"); if(p&&p.seen) progress=p; }catch(e){}
+  document.title=APP+" · "+f.name;
+  $("appSub").textContent=FAECHER.length>1?FAECHER.length+" Fächer · lernen, duellieren, gewinnen":f.name+" · "+Q.length+" Fragen · "+TOPICS.length+" Themen";
+  $("fachSel").innerHTML=FAECHER.map(x=>`<option value="${esc(x.kurz)}">${esc(x.icon||"📚")} ${esc(x.name)} · ${x.q.length} Fragen</option>`).join("");
+  $("fachSel").value=f.kurz;
+  const topicOpts=`<option value="mix">🎯 Gemischt – 15 Fragen aus allen Themen</option>`+TOPICS.map((t,i)=>`<option value="${i}">📚 ${esc(t)} (${Q.filter(q=>q.t===i).length} Fragen)</option>`).join("");
+  $("liveTopic").innerHTML=topicOpts; $("hotTopic").innerHTML=topicOpts;
+  const modes=(FAECHER.length>1?[["all","🌍 Alle Fächer · Gesamtpunkte"]]:[]).concat([
+    ["total","🏅 Gesamtpunkte "+f.kurzname],["mix","🎯 Bestwert Solo Gemischt"],["duel","⚔️ Duell-Siege"],["acc","🧠 Trefferquote gesamt"],["map","🗺️ Wer ist wo am besten?"]
+  ]).concat(TOPICS.map((t,i)=>["t"+i,"📚 "+t]));
+  const old=$("rankSel").value;
+  $("rankSel").innerHTML=modes.map(([v,l])=>`<option value="${v}">${esc(l)}</option>`).join("");
+  if(modes.some(m=>m[0]===old)) $("rankSel").value=old;
+  $("rankH").textContent="🏆 Rangliste · "+f.kurzname;
+  if(typeof rankRaw!=="undefined" && rankLoaded) rankRows=fachRows();
+}
 function markSeen(id,ok){ progress.seen[id]=(progress.seen[id]||0)+1; if(!ok) progress.wrong[id]=(progress.wrong[id]||0)+1; else if(progress.wrong[id]) progress.wrong[id]=Math.max(0,progress.wrong[id]-1); LS.set(P+"progress",JSON.stringify(progress)); }
 function rankQ(q){ const s=progress.seen[q.id]||0, w=progress.wrong[q.id]||0; return s*10 - w*4 + Math.random()*3; }
 function pickRound(topic){
@@ -108,14 +127,15 @@ function pickRound(topic){
 }
 
 /* ================= HOME ================= */
-const nickEl=$("nick"); nickEl.value=LS.get(P+"nick")||"";
+const nickEl=$("nick"); nickEl.value=LS.get(G+"nick")||LS.get("kb_bwl_nick")||"";
 function nick(){return nickEl.value.trim().slice(0,20)}
 function updName(){
   document.querySelectorAll(".needname").forEach(b=>b.disabled=!nick()||(b.classList.contains("needonline")&&!BE.ok));
   renderInvite();
 }
-nickEl.addEventListener("input",()=>{LS.set(P+"nick",nick());updName();});
+nickEl.addEventListener("input",()=>{LS.set(G+"nick",nick());updName();});
 nickEl.addEventListener("change",()=>{ const r=myRank(); if(r&&nick()&&r.nick!==nick()) saveRank(d=>{}); });
+$("fachSel").onchange=()=>{ selectFach($("fachSel").value); renderHome(); };
 nickEl.addEventListener("keydown",e=>{ if(e.key==="Enter") nickEl.blur(); });
 function renderHome(){
   const seen=Q.filter(q=>progress.seen[q.id]).length;
@@ -130,7 +150,6 @@ $("goRank").onclick=()=>{go("vRank","rangliste");renderRank();};
 $("goMe").onclick=()=>openProfile(me);
 $("goDuels").onclick=()=>{go("vDuels","duelle");renderDuelList();};
 $("goLive").onclick=()=>{go("vLive","live"); $("joinMsg").textContent=""; watchOpenRooms();};
-$("liveTopic").innerHTML=`<option value="mix">🎯 Gemischt – 15 Fragen aus allen Themen</option>`+TOPICS.map((t,i)=>`<option value="${i}">📚 ${esc(t)} (${Q.filter(q=>q.t===i).length} Fragen)</option>`).join("");
 function renderTopics(){
   const r=myRank()||{};
   $("topicList").innerHTML=TOPICS.map((t,i)=>{const qs=Q.filter(q=>q.t===i), s=qs.filter(q=>progress.seen[q.id]).length;
@@ -225,7 +244,7 @@ function stopQuiz(){ if(cur) clearInterval(cur.timerId); cur=null; solo=null; $(
 /* ================= SOLO ================= */
 let solo=null, lastSoloTopic="mix";
 function startSolo(topic){
-  LS.set(P+"nick",nick()); lastSoloTopic=topic;
+  LS.set(G+"nick",nick()); lastSoloTopic=topic;
   solo={topic, ids:pickRound(topic), idx:0, score:0, res:[]};
   location.hash="solo"; soloQ();
 }
@@ -285,7 +304,7 @@ function renderReview(res,el){
 $("againBtn").onclick=()=>startSolo(lastSoloTopic);
 $("homeBtn").onclick=()=>{location.hash="";};
 $("podHome").onclick=()=>{location.hash="";};
-$("copyBtn").onclick=()=>shareText(`⚔️ ${META.titel} (${$("endMode").textContent}): ${nick()} hat ${$("endScore").textContent} – ${$("endDetail").textContent}. Schlag mich! 😎 ${BASE}`,$("copyState"));
+$("copyBtn").onclick=()=>shareText(`⚔️ ${APP} · ${FACH.kurzname} (${$("endMode").textContent}): ${nick()} hat ${$("endScore").textContent} – ${$("endDetail").textContent}. Schlag mich! 😎 ${BASE}`,$("copyState"));
 async function shareText(txt,stateEl){
   try{ if(navigator.share){ await navigator.share({text:txt}); return; } }catch(e){ if(e&&e.name==="AbortError") return; }
   try{ await navigator.clipboard.writeText(txt); if(stateEl) stateEl.textContent="Kopiert – ab in die Gruppe damit!"; }
@@ -294,31 +313,36 @@ async function shareText(txt,stateEl){
 function waLink(txt){ return "https://wa.me/?text="+encodeURIComponent(txt); }
 
 /* ================= RANGLISTE ================= */
-let rankRows=[], rankLoaded=false;
+// Ein Dokument ranking/{uid} pro Person: BWL-Werte oben (wie bisher), weitere Fächer unter f.<kurz>
+let rankRaw=[], rankRows=[], rankLoaded=false;   // rankRows = Sicht auf das aktuelle Fach
 const myRank = () => rankRows.find(r=>r.id===me);
-function blankRank(){ return {nick:"",total:0,games:0,mix:null,topics:{},st:{},dw:{},at:0}; }
-function normRank(d){ const b=blankRank(); d=d||{}; return {nick:d.nick||"",total:Number(d.total)||0,games:Number(d.games)||0,mix:d.mix||null,
-  topics:Object.assign({},d.topics||{}),st:Object.assign({},d.st||{}),dw:Object.assign({},d.dw||{}),at:Number(d.at)||0}; }
+function blankRank(){ return Object.assign({nick:"",at:0},normFach({})); }
+function normFach(d){ d=d||{}; return {total:Number(d.total)||0,games:Number(d.games)||0,mix:d.mix||null,topics:Object.assign({},d.topics||{}),st:Object.assign({},d.st||{}),dw:Object.assign({},d.dw||{})}; }
+function fachData(raw,kurz){ return (kurz||"bwl")==="bwl" ? normFach(raw) : normFach(((raw||{}).f||{})[kurz]); }
+function allTotal(raw){ return FAECHER.reduce((s,f)=>s+fachData(raw,f.kurz).total,0); }
+function fachRows(kurz){ return rankRaw.map(r=>Object.assign({id:r.id,nick:r.nick||"",at:Number(r.at)||0},fachData(r,kurz||FACH.kurz))); }
 function addStats(d,res){ res.forEach(r=>{ const q=QBY[r.id]; if(!q) return; const k=tkey(q.t); const s=d.st[k]||{n:0,s:0};
   d.st[k]={n:s.n+1,s:Math.round((s.s+(Number(r.frac)||0))*1000)/1000}; d.total+=Number(r.pts)||0; }); }
 let rankChain=Promise.resolve();
-function saveRank(mut){
+function saveRank(mut,kurz){
+  kurz=kurz||FACH.kurz;
   const run=async()=>{
     if(!BE.ok||!me) return false;
-    try{ const d=normRank(await BE.get("ranking/"+me)); mut(d); d.nick=nick()||d.nick||"?"; d.at=Date.now();
-      await BE.set("ranking/"+me,d); return true; }catch(e){ console.warn(e); return false; }
+    try{ const raw=(await BE.get("ranking/"+me))||{}; const d=fachData(raw,kurz); mut(d);
+      const out=Object.assign({},raw);
+      if(kurz==="bwl") Object.assign(out,d); else out.f=Object.assign({},raw.f||{},{[kurz]:d});
+      out.nick=nick()||raw.nick||"?"; out.at=Date.now();
+      await BE.set("ranking/"+me,out); return true; }catch(e){ console.warn(e); return false; }
   };
   const p=rankChain.then(run); rankChain=p.catch(()=>{}); return p;
 }
 function acc(r,k){ const s=k?(r.st||{})[k]:Object.values(r.st||{}).reduce((a,v)=>({n:a.n+(v.n||0),s:a.s+(v.s||0)}),{n:0,s:0}); return s&&s.n?{p:Math.round(s.s/s.n*100),n:s.n}:{p:null,n:0}; }
 function duelRec(r){ const v=Object.values(r.dw||{}); return {w:v.filter(x=>x==="w").length,l:v.filter(x=>x==="l").length,d:v.filter(x=>x==="d").length}; }
 const MINN = 3;
-const RANKMODES = [
-  ["total","🏅 Gesamtpunkte (alle Modi)"],["mix","🎯 Bestwert Solo Gemischt"],["duel","⚔️ Duell-Siege"],["acc","🧠 Trefferquote gesamt"],["map","🗺️ Wer ist wo am besten?"]
-].concat(TOPICS.map((t,i)=>["t"+i,"📚 "+t]));
-$("rankSel").innerHTML=RANKMODES.map(([v,l])=>`<option value="${v}">${esc(l)}</option>`).join("");
 $("rankSel").onchange=renderRank;
 function rankList(mode){
+  if(mode==="all") return rankRaw.filter(r=>r.nick).map(r=>({r:{id:r.id,nick:r.nick},t:allTotal(r),parts:FAECHER.map(f=>({f,t:fachData(r,f.kurz).total})).filter(x=>x.t>0)}))
+    .filter(x=>x.t>0).sort((a,b)=>b.t-a.t).map(x=>({r:x.r,v:fmt(x.t)+" P",sub:x.parts.map(p=>p.f.kurzname+" "+fmt(p.t)).join(" · ")}));
   const rows=rankRows.filter(r=>r.nick);
   if(mode==="total") return rows.filter(r=>r.total>0).sort((a,b)=>b.total-a.total).map(r=>({r,v:fmt(r.total)+" P",sub:pl(r.games||0,"Runde","Runden")}));
   if(mode==="mix") return rows.filter(r=>r.mix&&r.mix.best!=null).sort((a,b)=>b.mix.best-a.mix.best).map(r=>({r,v:fmt(r.mix.best)+" P",sub:`${r.mix.runs||1}× gespielt`}));
@@ -341,11 +365,11 @@ function bindRankClicks(el){ el.querySelectorAll("tr[data-uid]").forEach(tr=>tr.
 function renderMini(){
   const el=$("lbMini");
   if(!BE.ok){ el.innerHTML=`<p class="muted">${rankLoaded||BE.error?"Keine Verbindung zur Rangliste – Solo und „Ein Handy, reihum“ funktionieren trotzdem.":"Rangliste wird geladen …"}</p>`; return; }
-  el.innerHTML=`<p class="muted small" style="margin:0 0 4px">🏅 Gesamtpunkte</p>`+rankTable(rankList("total"),5); bindRankClicks(el);
+  el.innerHTML=`<p class="muted small" style="margin:0 0 4px">🏅 Gesamtpunkte · ${esc(FACH.kurzname)}</p>`+rankTable(rankList("total"),5); bindRankClicks(el);
 }
 function renderRank(){
   const mode=$("rankSel").value, box=$("rankBox");
-  const hints={total:"Alle Punkte aus Solo-Runden, Duellen und Live-Battles zusammen.",mix:"Bester Punktestand in einer Solo-Runde „Gemischt“ (15 Fragen).",
+  const hints={all:"Alle Punkte aus allen Fächern zusammen.",total:"Alle Punkte in diesem Fach aus Solo-Runden, Duellen und Live-Battles.",mix:"Bester Punktestand in einer Solo-Runde „Gemischt“ (15 Fragen).",
     duel:"Gewonnene Duelle. S = Sieg, U = Unentschieden, N = Niederlage.",acc:"Anteil richtiger Antworten über alle Modi (ab 5 Antworten).",
     map:"Für jedes Thema: wer die höchste Trefferquote hat (ab "+MINN+" Antworten im Thema)."};
   $("rankHint").textContent= hints[mode] || "Trefferquote in diesem Thema über alle Modi – Bestwert = beste Solo-Runde in diesem Thema.";
@@ -372,7 +396,9 @@ function renderProfile(){
   if(!r){ $("profName").textContent="Unbekannt"; return; }
   const isMe=r.id===me, a=acc(r), dr=duelRec(r);
   $("profName").textContent=(isMe?"📊 ":"👤 ")+(r.nick||"?")+(isMe?" (du)":"");
-  $("profSub").textContent=`${fmt(r.total)} Punkte · ${pl(r.games||0,"Runde","Runden")} · Trefferquote ${a.p!=null?a.p+" %":"–"} · Duelle ${dr.w} S / ${dr.d} U / ${dr.l} N`;
+  const raw=rankRaw.find(x=>x.id===r.id);
+  const perFach = FAECHER.length>1&&raw ? " · Alle Fächer: "+fmt(allTotal(raw))+" P" : "";
+  $("profSub").textContent=`${FACH.kurzname}: ${fmt(r.total)} Punkte · ${pl(r.games||0,"Runde","Runden")} · Trefferquote ${a.p!=null?a.p+" %":"–"} · Duelle ${dr.w} S / ${dr.d} U / ${dr.l} N`+perFach;
   $("profDuel").classList.toggle("hidden",isMe||!BE.ok||!nick());
   $("profDuel").onclick=()=>createDuel(r.id,r.nick);
   const ts=TOPICS.map((t,i)=>({t,i,a:acc(r,tkey(i))}));
@@ -386,7 +412,7 @@ function renderProfile(){
 }
 function startRankWatch(){
   const to=setTimeout(()=>{ if(!rankLoaded) $("lbState").textContent="lädt langsam …"; },10000);
-  BE.onQuery("ranking",[],500,rows=>{ clearTimeout(to); rankLoaded=true; $("lbState").textContent=""; rankRows=rows.map(r=>Object.assign(normRank(r),{id:r.id}));
+  BE.onQuery("ranking",[],500,rows=>{ clearTimeout(to); rankLoaded=true; $("lbState").textContent=""; rankRaw=rows; rankRows=fachRows();
       renderMini(); if(isShown("vRank")) renderRank(); if(isShown("vProfile")) renderProfile(); if(isShown("vTopics")) renderTopics(); if(isShown("vDuelNew")) renderDuelNew();
       duelsRecordResults(); },
     ()=>{ clearTimeout(to); $("lbState").textContent="nicht erreichbar"; });
@@ -439,10 +465,10 @@ function duelsChanged(){
 }
 let recording=false;
 async function duelsRecordResults(){
-  if(recording||!rankLoaded) return; const r=myRank()||normRank({});
-  const todo=duel.mine.filter(d=>d.status==="done"&&who(d,me)&&!(r.dw||{})[d.id]);
+  if(recording||!rankLoaded) return; const raw=rankRaw.find(x=>x.id===me)||{};
+  const todo=duel.mine.filter(d=>d.status==="done"&&who(d,me)&&!fachData(raw,d.fach).dw[d.id]);
   if(!todo.length) return; recording=true;
-  try{ await saveRank(x=>{ todo.forEach(d=>{ x.dw[d.id]=duelResult(d); }); }); } finally{ recording=false; }
+  try{ for(const k of new Set(todo.map(d=>d.fach||"bwl"))){ await saveRank(x=>{ todo.filter(d=>(d.fach||"bwl")===k).forEach(d=>{ x.dw[d.id]=duelResult(d); }); },k); } } finally{ recording=false; }
 }
 function renderDuelBadge(){
   const n=duel.mine.filter(d=>{const k=duelNext(d).k;return k==="play"||k==="choose";}).length;
@@ -460,7 +486,8 @@ function duelLine(d){
   let score="";
   if(w){ const o=w==="a"?"b":"a"; score=`${duelTotals(d,w).c} : ${duelTotals(d,o).c}`; }
   const name = w ? opName(d) : (d.an||"?");
-  return `<button data-id="${esc(d.id)}"><span><b>${w?"vs ":"⚔️ "}${esc(name)}</b><br><span class="st ${go?"go":""}">${esc(st)}</span></span><b>${esc(score)}</b></button>`;
+  const fl = FAECHER.length>1 ? `<span class="chip">${esc(fachBy(d.fach).icon||"")} ${esc(fachBy(d.fach).kurzname)}</span> ` : "";
+  return `<button data-id="${esc(d.id)}"><span>${fl}<b>${w?"vs ":"⚔️ "}${esc(name)}</b><br><span class="st ${go?"go":""}">${esc(st)}</span></span><b>${esc(score)}</b></button>`;
 }
 function renderDuelList(){
   const mine=duel.mine.slice().sort((a,b)=>(b.up||0)-(a.up||0));
@@ -487,7 +514,7 @@ $("dnLink").onclick=()=>createDuel(null,"");
 async function createDuel(opp,oppNick){
   if(!BE.ok||!nick()) return;
   const id=Math.random().toString(36).slice(2,8)+Date.now().toString(36).slice(-4);
-  const d={a:me,an:nick(),b:opp||null,bn:oppNick||"",p:opp?[me,opp]:[me],status:opp?"active":"open",rd:{},ra:{},rb:{},at:Date.now(),up:Date.now()};
+  const d={fach:FACH.kurz,a:me,an:nick(),b:opp||null,bn:oppNick||"",p:opp?[me,opp]:[me],status:opp?"active":"open",rd:{},ra:{},rb:{},at:Date.now(),up:Date.now()};
   try{ await BE.set("duels/"+id,d); }catch(e){ $("dnMsg").textContent="Duell konnte nicht erstellt werden – Internet prüfen."; return; }
   duel.all[id]=Object.assign({id},d); if(!duel.mine.find(x=>x.id===id)) duel.mine.push(duel.all[id]);
   openDuel(id);
@@ -498,7 +525,9 @@ function duelLink(d){ return BASE+"?duell="+encodeURIComponent(d.id); }
 function renderDuel(){
   const d=duel.all[duel.openId];
   if(!d){ $("dvStatus").innerHTML=`<div class="note">Duell wird geladen …</div>`; $("dvRounds").innerHTML=""; $("dvShare").innerHTML=""; loadDuelOnce(duel.openId); return; }
+  if((d.fach||"bwl")!==FACH.kurz) selectFach(d.fach);
   const w=who(d,me), o=w==="a"?"b":"a", n=duelNext(d);
+  $("dvFach").textContent=(FACH.icon||"")+" "+FACH.name;
   const opN = w? opName(d) : (d.bn||"?");
   $("dvMe").textContent= w?"Du":d.an; $("dvOp").textContent= w?opN:"?";
   const A=w?duelTotals(d,w):{c:0,p:0}, B=w?duelTotals(d,o):{c:0,p:0};
@@ -529,8 +558,8 @@ function renderDuel(){
   }
   $("dvRounds").innerHTML=`<div class="row between small muted" style="padding:0 4px"><span>Du</span><span>${esc(w?opN:"")}</span></div>`+rh;
   // Teilen
-  const txt = n.k==="waitjoin" ? `⚔️ ${nick()} fordert dich im ${META.titel} heraus! Hier annehmen: ${duelLink(d)}`
-            : `⚔️ Du bist im ${META.titel} gegen ${nick()} dran! ${duelLink(d)}`;
+  const txt = n.k==="waitjoin" ? `⚔️ ${nick()} fordert dich im ${APP} (${FACH.kurzname}) heraus! Hier annehmen: ${duelLink(d)}`
+            : `⚔️ Du bist im ${APP} (${FACH.kurzname}) gegen ${nick()} dran! ${duelLink(d)}`;
   const showShare = w && d.status!=="done" && (n.k==="waitjoin"||n.k==="wait"||n.k==="waitfinish");
   $("dvShare").innerHTML = showShare ? `<div class="share"><a class="btn" style="display:grid;place-items:center;text-decoration:none;border-radius:12px;min-height:48px" href="${esc(waLink(txt))}" target="_blank" rel="noopener">WhatsApp</a><button class="btn2" id="dvCopy">${n.k==="waitjoin"?"Link kopieren":"Erinnern (Link)"}</button></div><p class="muted small" id="dvCopyState"></p>` : "";
   if($("dvCopy")) $("dvCopy").onclick=()=>shareText(txt,$("dvCopyState"));
@@ -642,7 +671,7 @@ function watchOpenRooms(){
   if(live.unOpen) live.unOpen();
   live.unOpen=BE.onQuery("rooms",[["status","==","lobby"]],20,rows=>{
     const fresh=rows.filter(r=>Date.now()-(r.hb||r.wAt||0)<90000).sort((a,b)=>(b.wAt||0)-(a.wAt||0));
-    $("openRooms").innerHTML=fresh.length?`<p class="muted small" style="margin:0 0 8px">Offene Räume:</p><div class="dlist">`+fresh.map(r=>`<button data-c="${esc(r.code)}"><span><b>${esc(r.hostNick||"?")}</b> · Raum ${esc(r.code)}<br><span class="st">${r.topic==="mix"?"🎯 Gemischt":"📚 "+esc(TOPICS[+r.topic]||"")}</span></span><span>Beitreten ›</span></button>`).join("")+`</div><div style="height:12px"></div><p class="muted small" style="margin:0 0 8px">Oder Code eingeben:</p>`:"";
+    $("openRooms").innerHTML=fresh.length?`<p class="muted small" style="margin:0 0 8px">Offene Räume:</p><div class="dlist">`+fresh.map(r=>{const f=fachBy(r.fach);return `<button data-c="${esc(r.code)}"><span><b>${esc(r.hostNick||"?")}</b> · Raum ${esc(r.code)}<br><span class="st">${esc(f.icon||"")} ${esc(f.kurzname)} · ${r.topic==="mix"?"🎯 Gemischt":"📚 "+esc(f.topics[+r.topic]||"")}</span></span><span>Beitreten ›</span></button>`;}).join("")+`</div><div style="height:12px"></div><p class="muted small" style="margin:0 0 8px">Oder Code eingeben:</p>`:"";
     $("openRooms").querySelectorAll("button").forEach(b=>b.onclick=()=>joinRoom(b.dataset.c));
   });
 }
@@ -657,7 +686,7 @@ $("createRoom").onclick=async()=>{
       const ex=await BE.get("rooms/"+code);
       if(ex && Date.now()-(ex.hb||ex.wAt||0)<6*3600e3) continue;
       const gid=Math.random().toString(36).slice(2,10);
-      const g={code,gid,host:me,hostNick:nick(),topic:$("liveTopic").value,status:"lobby",qids:[],orders:{},idx:-1,endsAt:0,pausedLeft:null,wAt:Date.now(),hb:Date.now()};
+      const g={fach:FACH.kurz,code,gid,host:me,hostNick:nick(),topic:$("liveTopic").value,status:"lobby",qids:[],orders:{},idx:-1,endsAt:0,pausedLeft:null,wAt:Date.now(),hb:Date.now()};
       await BE.set("rooms/"+code,g);
       Object.assign(live,{code,gid,isHost:true,myAns:{},myScore:0,saved:false});
       await BE.set(myPlayerPath(),{gid,nick:nick(),score:0,ans:{},seen:Date.now(),left:false});
@@ -675,6 +704,7 @@ async function joinRoom(code){
     const g=await BE.get("rooms/"+code);
     if(!g||g.status==="closed"||Date.now()-(g.hb||g.wAt||0)>120000){ liveMsg("Kein offener Raum mit diesem Code gefunden."); return; }
     if(g.status==="end"){ liveMsg("Dieses Battle ist schon vorbei."); return; }
+    selectFach(g.fach);
     live.code=code; live.gid=g.gid; live.isHost=g.host===me;
     const old=await BE.get(myPlayerPath());
     if(old&&old.gid===g.gid){ live.myAns=old.ans||{}; live.myScore=Number(old.score)||0; await BE.update(myPlayerPath(),{nick:nick(),seen:Date.now(),left:false}); }
@@ -748,8 +778,8 @@ function onGame(){
   const isH=live.isHost;
   if(g.status==="lobby"){
     if(location.hash!=="#lobby") go("vLobby","lobby"); else show("vLobby");
-    $("lobCode").textContent=g.code; $("lobTopic").textContent=(g.topic==="mix"?"🎯 Gemischt – 15 Fragen":"📚 "+TOPICS[+g.topic])+" · Host: "+(g.hostNick||"");
-    const link=BASE+"?raum="+g.code, txt=`🔴 Live-Battle im ${META.titel}! Komm in Raum ${g.code}: ${link}`;
+    $("lobCode").textContent=g.code; $("lobTopic").textContent=FACH.kurzname+" · "+(g.topic==="mix"?"🎯 Gemischt – 15 Fragen":"📚 "+TOPICS[+g.topic])+" · Host: "+(g.hostNick||"");
+    const link=BASE+"?raum="+g.code, txt=`🔴 Live-Battle im ${APP} (${FACH.kurzname})! Komm in Raum ${g.code}: ${link}`;
     $("lobShare").innerHTML=`<a class="btn" style="display:grid;place-items:center;text-decoration:none;border-radius:12px;min-height:48px" href="${esc(waLink(txt))}" target="_blank" rel="noopener">WhatsApp</a><button class="btn2" id="lobCopy">Link kopieren</button>`;
     $("lobCopy").onclick=()=>shareText(txt,null);
     $("lobStart").classList.toggle("hidden",!isH); $("lobWait").classList.toggle("hidden",isH); onPlayers(); return;
@@ -851,9 +881,8 @@ function hostLoop(){
 
 /* ================= REIHUM (ein Handy) ================= */
 let hot=null, hotNames=[];
-try{ hotNames=JSON.parse(LS.get(P+"hot_names")||"null")||[]; }catch(e){}
+try{ hotNames=JSON.parse(LS.get(G+"hot_names")||LS.get("kb_bwl_hot_names")||"null")||[]; }catch(e){}
 if(hotNames.length<2) hotNames=[nick()||"",""];
-$("hotTopic").innerHTML=`<option value="mix">🎯 Gemischt – 15 Fragen aus allen Themen</option>`+TOPICS.map((t,i)=>`<option value="${i}">📚 ${esc(t)} (${Q.filter(q=>q.t===i).length} Fragen)</option>`).join("");
 function renderHotNames(){
   const box=$("hotNames"); box.innerHTML="";
   hotNames.forEach((n,i)=>{
@@ -872,7 +901,7 @@ $("hotAdd").onclick=()=>{ if(hotNames.length<6){ hotNames.push(""); renderHotNam
 $("hotStart").onclick=()=>{
   const names=hotNames.map(n=>n.trim()).filter(Boolean);
   if(names.length<2){ $("hotMsg").textContent="Bitte mindestens 2 Namen eintragen."; return; }
-  LS.set(P+"hot_names",JSON.stringify(names));
+  LS.set(G+"hot_names",JSON.stringify(names));
   const topic=$("hotTopic").value;
   hot={names,topic,ids:pickRound(topic),qi:0,pi:0,scores:names.map(()=>0),res:names.map(()=>[]),curRes:[]};
   go("vPass","reihum-spiel"); hotPass();
@@ -949,6 +978,8 @@ function step(){
 
 /* ================= START ================= */
 if(location.hash) history.replaceState(null,"",location.pathname+location.search);
+selectFach(PARAMS.get("fach")||LS.get(G+"fach")||"bwl");
+$("fachCard").classList.toggle("hidden",FAECHER.length<2);
 renderHome();
 BE.init().then(uid=>{
   me=uid;
