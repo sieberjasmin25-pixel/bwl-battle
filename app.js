@@ -174,7 +174,7 @@ function selectFach(kurz){
   const topicOpts=`<option value="mix">🎯 Gemischt – 15 Fragen aus allen Themen</option>`+(hasCalc?`<option value="calc">🧮 Nur Rechnen (${nCalc} Aufgaben)</option>`:"")+TOPICS.map((t,i)=>`<option value="${i}">📚 ${esc(t)} (${Q.filter(q=>q.t===i).length} Fragen)</option>`).join("");
   $("liveTopic").innerHTML=topicOpts; $("hotTopic").innerHTML=topicOpts;
   const modes=(FAECHER.length>1?[["all","🌍 Alle Fächer · Gesamtpunkte"]]:[]).concat([
-    ["total","🏅 Gesamtpunkte "+f.kurzname],["mix","🎯 Bestwert Solo Gemischt"]].concat(hasCalc?[["calc","🧮 Bestwert Nur Rechnen"]]:[]).concat([["duel","⚔️ Duell-Siege"],["acc","🧠 Trefferquote gesamt"],["map","🗺️ Wer ist wo am besten?"]
+    ["total","🏅 Gesamtpunkte "+f.kurzname],["mix","🎯 Bestwert Solo Gemischt"]].concat(hasCalc?[["calc","🧮 Bestwert Nur Rechnen"]]:[]).concat([["endlos","♾️ Bestwert Endlos"],["blitz","⚡ Bestwert Blitzrunde"],["pruefung","📝 Bestwert Klausur-Simulation"]]).concat([["duel","⚔️ Duell-Siege"],["acc","🧠 Trefferquote gesamt"],["map","🗺️ Wer ist wo am besten?"]
   ])).concat(TOPICS.map((t,i)=>["t"+i,"📚 "+t]));
   const old=$("rankSel").value;
   $("rankSel").innerHTML=modes.map(([v,l])=>`<option value="${v}">${esc(l)}</option>`).join("");
@@ -184,16 +184,31 @@ function selectFach(kurz){
 }
 function markSeen(id,ok){ progress.seen[id]=(progress.seen[id]||0)+1; if(!ok) progress.wrong[id]=(progress.wrong[id]||0)+1; else if(progress.wrong[id]) progress.wrong[id]=Math.max(0,progress.wrong[id]-1); LS.set(P+"progress",JSON.stringify(progress)); }
 function rankQ(q){ const s=progress.seen[q.id]||0, w=progress.wrong[q.id]||0; return s*10 - w*4 + Math.random()*3; }
+/* ---------- Varianten: neue Zahlen / andere Formulierung (gleicher seed = gleiche Variante) ---------- */
+function qInst(base,seed){
+  if(!base || (!base.gen && !base.qv) || seed==null) return base;
+  const r=seeded(String(seed)+"|"+base.id), q=Object.assign({},base);
+  if(base.qv){ const all=[base.q].concat(base.qv); q.q=all[Math.floor(r()*all.length)]; }
+  if(base.gen) Object.assign(q,base.gen(r));
+  return q;
+}
+const newSeed = () => Math.random().toString(36).slice(2,9);
+const resQ = r => qInst(QBY[r.id], r.seed);
+const altHtml = q => q&&q.alt ? `<div class="small" style="margin-top:8px"><b>✔ Auch richtig:</b> ${esc(q.alt)}</div>` : "";
 const MIN_CALC = 3;   // ab so vielen Rechenaufgaben gibt es den Modus „Nur Rechnen“
-function topicLabel(topic,f){ f=f||FACH; return topic==="mix"?"🎯 Gemischt":topic==="calc"?"🧮 Nur Rechnen":topic==="wrong"?"❌ Falsche nochmal":"📚 "+(f.topics[+topic]||""); }
+function topicLabel(topic,f){ f=f||FACH; return topic==="mix"?"🎯 Gemischt":topic==="calc"?"🧮 Nur Rechnen":topic==="wrong"?"❌ Falsche nochmal":topic==="endlos"?"♾️ Endlos":topic==="blitz"?"⚡ Blitzrunde":topic==="pruefung"?"📝 Klausur-Simulation":"📚 "+(f.topics[+topic]||""); }
 const wrongQs = () => Q.filter(q=>(progress.wrong[q.id]||0)>0);
-function pickRound(topic){
+function pickRound(topic,n){
+  n=n||ROUND;
+  if(topic==="endlos") return shuffle(Q.map(q=>q.id));
+  if(topic==="blitz") return shuffle(Q.filter(q=>q.type==="mc").map(q=>q.id)).slice(0,ROUND);
+  if(topic==="pruefung") return pickRound("mix",20);
   if(topic==="wrong") return shuffle(wrongQs().map(q=>q.id)).slice(0,ROUND);
   if(topic==="calc") return shuffle(Q.filter(q=>q.type==="num").sort((a,b)=>rankQ(a)-rankQ(b)).slice(0,ROUND).map(q=>q.id));
   if(topic!=="mix"){ const t=+topic; return shuffle(Q.filter(q=>q.t===t).sort((a,b)=>rankQ(a)-rankQ(b)).slice(0,ROUND).map(q=>q.id)); }
   const chosen=[]; const used=new Set();
-  shuffle(TOPICS.map((_,i)=>i)).forEach(t=>{const c=Q.filter(q=>q.t===t).sort((a,b)=>rankQ(a)-rankQ(b))[0]; if(c&&chosen.length<ROUND){chosen.push(c.id);used.add(c.id);}});
-  Q.filter(q=>!used.has(q.id)).sort((a,b)=>rankQ(a)-rankQ(b)).slice(0,ROUND-chosen.length).forEach(q=>chosen.push(q.id));
+  shuffle(TOPICS.map((_,i)=>i)).forEach(t=>{const c=Q.filter(q=>q.t===t).sort((a,b)=>rankQ(a)-rankQ(b))[0]; if(c&&chosen.length<n){chosen.push(c.id);used.add(c.id);}});
+  Q.filter(q=>!used.has(q.id)).sort((a,b)=>rankQ(a)-rankQ(b)).slice(0,n-chosen.length).forEach(q=>chosen.push(q.id));
   return shuffle(chosen);
 }
 
@@ -221,6 +236,9 @@ function setConn(state,text){ const c=$("conn"); c.className="status "+state; c.
 $("goMix").onclick=()=>startSolo("mix");
 $("goTopics").onclick=()=>{go("vTopics","themen");renderTopics();};
 $("goWrong").onclick=()=>startSolo("wrong");
+$("goEndlos").onclick=()=>startSolo("endlos");
+$("goBlitz").onclick=()=>startSolo("blitz");
+$("goPruef").onclick=()=>startSolo("pruefung");
 $("endWrong").onclick=()=>startSolo("wrong");
 $("goCalc").onclick=()=>startSolo("calc");
 $("goRank").onclick=()=>{go("vRank","rangliste");renderRank();};
@@ -250,7 +268,7 @@ function renderCatalog(){
     if(q.type==="mc") ans=`<ul>${q.o.map((o,k)=>`<li class="${k===q.a?"ok":""}">${k===q.a?"✅ ":""}${esc(o)}</li>`).join("")}</ul>`;
     else if(q.type==="match") ans=`<ul>${q.items.map(it=>`<li>${esc(it[0])} → <b>${esc(q.cats[it[1]])}</b></li>`).join("")}</ul>`;
     else ans=`<p style="margin:4px 0"><b>Lösung: ${esc(numText(q))}</b></p>`;
-    return `<details class="catq" ${catAllOpen?"open":""}><summary><span class="tg">${i+1} · ${typ(q)}</span><b>${esc(q.q)}</b></summary><div class="ans">${ans}<p class="small muted" style="margin:6px 0 0">${esc(q.e)}</p>${st?`<p class="small" style="margin:6px 0 0">${st.slice(3)}</p>`:""}</div></details>`;
+    return `<details class="catq" ${catAllOpen?"open":""}><summary><span class="tg">${i+1} · ${typ(q)}</span><b>${esc(q.q)}</b></summary><div class="ans">${ans}<p class="small muted" style="margin:6px 0 0">${esc(q.e)}</p>${altHtml(q)}${q.gen?`<p class="small" style="margin:6px 0 0">🔢 Im Spiel kommt diese Aufgabe jedes Mal mit neuen Zahlen.</p>`:""}${q.qv?`<p class="small" style="margin:6px 0 0">🔀 Wird auch so gefragt: ${q.qv.map(esc).join(" · ")}</p>`:""}${st?`<p class="small" style="margin:6px 0 0">${st.slice(3)}</p>`:""}</div></details>`;
   }).join("");
 }
 $("catBack").onclick=()=>{ location.hash="themen"; };
@@ -261,7 +279,7 @@ $("catOpenAll").onclick=()=>{ catAllOpen=!catAllOpen; renderCatalog(); };
 let cur=null;
 function renderQuestion(q, opts){
   if(cur) clearInterval(cur.timerId);
-  cur={q,sel:null,matchSel:null,answered:false,onDone:opts.onDone,deadline:opts.deadline,limit:TIME[q.type],paused:false};
+  cur={q,sel:null,matchSel:null,answered:false,onDone:opts.onDone,deadline:opts.deadline,limit:opts.limit||TIME[q.type],paused:false};
   show("vQuiz");
   $("qCount").textContent=opts.label; $("qTopic").textContent=TOPICS[q.t];
   $("qType").textContent = q.type==="mc"?"Multiple Choice":q.type==="match"?"Zuordnung":"Rechnen";
@@ -339,7 +357,7 @@ function showSolution(res,timeout){
   else { $("numIn").disabled=true; detail="Richtig: "+numText(q); }
   const good=res.frac===1, part=res.frac>0&&res.frac<1;
   const head= timeout&&res.frac===0?"⏰ Zeit abgelaufen":good?"✅ Richtig!":part?"🟡 Teilweise richtig":"❌ Leider falsch";
-  $("qFb").innerHTML=`<div class="fb ${good?"ok":"bad"}"><b>${head} · +${res.pts} P</b><div class="small" style="margin-bottom:6px">${esc(detail)}</div>${esc(q.e)}</div>`;
+  $("qFb").innerHTML=`<div class="fb ${good?"ok":"bad"}"><b>${head} · +${res.pts} P</b><div class="small" style="margin-bottom:6px">${esc(detail)}</div>${esc(q.e)}${altHtml(q)}</div>`;
   if(good) confetti(60); else sadPop(part?"😕":"😢");
 }
 function submit(timeout){
@@ -354,18 +372,25 @@ function stopQuiz(){ if(cur) clearInterval(cur.timerId); cur=null; solo=null; $(
 let solo=null, lastSoloTopic="mix";
 function startSolo(topic){
   LS.set(G+"nick",nick()); lastSoloTopic=topic;
-  solo={topic, ids:pickRound(topic), idx:0, score:0, res:[]};
+  solo={topic, ids:pickRound(topic), idx:0, score:0, res:[], seed:newSeed()};
   location.hash="solo"; soloQ();
 }
 function soloQ(){
-  const q=QBY[solo.ids[solo.idx]];
-  $("prevBtn").classList.toggle("hidden",solo.idx<1);
-  renderQuestion(q,{label:`Frage ${solo.idx+1}/${solo.ids.length}`,score:solo.score,canPause:true,deadline:Date.now()+TIME[q.type]*1000,
-    onDone:(res,timeout)=>{ solo.score+=res.pts; solo.res.push({id:q.id,frac:res.frac,pts:res.pts,given:givenText(),timeout}); markSeen(q.id,res.frac===1);
-      if(solo.topic==="wrong" && res.frac===1){ progress.wrong[q.id]=0; LS.set(P+"progress",JSON.stringify(progress)); }
-      $("qScore").textContent=fmt(solo.score); showSolution(res,timeout);
-      $("actBtn").textContent= solo.idx+1<solo.ids.length?"Weiter →":"Auswertung anzeigen";
-      cur.next=()=>{ solo.idx++; if(solo.idx<solo.ids.length) soloQ(); else soloEnd(); }; upd(); }});
+  const seed=solo.seed+":"+solo.idx, q=qInst(QBY[solo.ids[solo.idx]],seed);
+  const T=solo.topic, lim=T==="blitz"?10:TIME[q.type];
+  const streak=solo.res.filter(r=>r.frac===1).length;
+  $("prevBtn").classList.toggle("hidden",solo.idx<1||T==="pruefung");
+  renderQuestion(q,{label:T==="endlos"?`Frage ${solo.idx+1} · Serie ${streak} 🔥`:`Frage ${solo.idx+1}/${solo.ids.length}`,score:solo.score,canPause:T!=="blitz",deadline:Date.now()+lim*1000,limit:lim,
+    onDone:(res,timeout)=>{ solo.score+=res.pts; solo.res.push({id:q.id,seed,frac:res.frac,pts:res.pts,given:givenText(),timeout}); markSeen(q.id,res.frac===1);
+      if(T==="wrong" && res.frac===1){ progress.wrong[q.id]=0; LS.set(P+"progress",JSON.stringify(progress)); }
+      $("qScore").textContent=fmt(solo.score);
+      if(T==="pruefung"){   // Klausur-Simulation: Auflösung erst am Ende
+        $("qBody").querySelectorAll("button,input").forEach(el=>el.disabled=true);
+        $("qFb").innerHTML=`<div class="fb ok"><b>${timeout?"⏰ Zeit abgelaufen – ":""}Antwort gespeichert ✓</b>Die Auflösung gibt es am Ende – wie in der Klausur.</div>`;
+      } else showSolution(res,timeout);
+      const over = T==="endlos" && res.frac<1;
+      $("actBtn").textContent= !over && solo.idx+1<solo.ids.length?"Weiter →":"Auswertung anzeigen";
+      cur.next=()=>{ if(over){ soloEnd(); return; } solo.idx++; if(solo.idx<solo.ids.length) soloQ(); else soloEnd(); }; upd(); }});
 }
 $("pauseBtn").onclick=()=>{
   if(live.code){ if(live.isHost) hostPause(); return; }
@@ -389,13 +414,13 @@ function openPeek(){
   renderPeek(); $("peekOv").classList.remove("hidden"); $("peekOv").scrollTop=0;
 }
 function renderPeek(){
-  const r=solo.res[peekIdx], q=QBY[r.id];
+  const r=solo.res[peekIdx], q=resQ(r);
   $("peekTitle").textContent=`Frage ${peekIdx+1} von ${solo.ids.length}`; $("peekTopic").textContent=TOPICS[q.t];
   $("peekQ").textContent=q.q;
   const good=r.frac===1, part=r.frac>0&&r.frac<1;
   $("peekMine").innerHTML=`<div class="fb ${good?"ok":"bad"}"><b>${good?"✅ Richtig":part?"🟡 Teilweise richtig":r.timeout&&!r.frac?"⏰ Zeit abgelaufen":"❌ Falsch"} · +${r.pts} P</b><div class="small">Deine Antwort: ${esc(r.given||"–")}</div></div>`;
   $("peekSol").innerHTML=`<b style="color:var(--ok)">Lösung:</b> ${esc(solText(q))}`;
-  $("peekExp").textContent=q.e;
+  $("peekExp").innerHTML=esc(q.e)+altHtml(q);
   const maxIdx = solo.res.length-1;
   $("peekPrev").disabled=peekIdx<=0; $("peekNext").disabled=peekIdx>=maxIdx;
 }
@@ -413,7 +438,7 @@ async function soloEnd(){
   $("endWrong").textContent=`❌ Falsche nochmal üben (${wrongQs().length})`; $("endWrong").classList.toggle("hidden",!wrongQs().length);
   const right=s.res.filter(r=>r.frac===1).length, max=s.ids.length*150;
   $("endMode").textContent = topicLabel(s.topic);
-  $("endScore").textContent=fmt(s.score)+" P"; $("endDetail").textContent=`${right}/${s.ids.length} komplett richtig · max. ${fmt(max)} P`;
+  $("endScore").textContent=fmt(s.score)+" P"; $("endDetail").textContent= s.topic==="endlos" ? `${right} richtig in Folge 🔥 (von ${s.ids.length} Fragen im Fach)` : `${right}/${s.ids.length} komplett richtig · max. ${fmt(max)} P`;
   renderTopicStats(s.res,$("topicBox")); renderReview(s.res,$("reviewBox"));
   $("copyState").textContent=""; $("saveState").textContent= BE.ok?"Wird in der Rangliste gespeichert …":"Offline – nicht in der Rangliste gespeichert.";
   let newBest=false;
@@ -441,7 +466,7 @@ function topicBar(label,p,extra){
 function solText(q){ return q.type==="mc"? q.o[q.a] : q.type==="num"? numText(q) : q.items.map(it=>it[0]+" → "+q.cats[it[1]]).join(" · "); }
 function renderReview(res,el){
   const wrong=res.filter(r=>r.frac<1);
-  el.innerHTML= wrong.length? wrong.map(r=>{const q=QBY[r.id];
+  el.innerHTML= wrong.length? wrong.map(r=>{const q=resQ(r);
     return `<div class="review"><span class="chip">${esc(TOPICS[q.t])}</span><p style="margin:6px 0"><b>${esc(q.q)}</b></p><p class="small" style="margin:0 0 4px"><b style="color:var(--ok)">Lösung:</b> ${esc(solText(q))}</p><p class="small muted" style="margin:0">${esc(q.e)}</p></div>`}).join("") : "<p>Keine Fehler – stark! 💪</p>";
 }
 $("againBtn").onclick=()=>startSolo(lastSoloTopic);
@@ -488,7 +513,7 @@ function rankList(mode){
     .filter(x=>x.t>0).sort((a,b)=>b.t-a.t).map(x=>({r:x.r,v:fmt(x.t)+" P",sub:x.parts.map(p=>p.f.kurzname+" "+fmt(p.t)).join(" · ")}));
   const rows=rankRows.filter(r=>r.nick);
   if(mode==="total") return rows.filter(r=>r.total>0).sort((a,b)=>b.total-a.total).map(r=>({r,v:fmt(r.total)+" P",sub:pl(r.games||0,"Runde","Runden")}));
-  if(mode==="calc") return rows.filter(r=>r.topics.tcalc&&r.topics.tcalc.best!=null).sort((a,b)=>b.topics.tcalc.best-a.topics.tcalc.best).map(r=>({r,v:fmt(r.topics.tcalc.best)+" P",sub:`${r.topics.tcalc.runs||1}× gespielt`}));
+  if(["calc","endlos","blitz","pruefung"].includes(mode)){ const k="t"+mode; return rows.filter(r=>r.topics[k]&&r.topics[k].best!=null).sort((a,b)=>b.topics[k].best-a.topics[k].best).map(r=>({r,v:fmt(r.topics[k].best)+" P",sub:`${r.topics[k].runs||1}× gespielt`})); }
   if(mode==="mix") return rows.filter(r=>r.mix&&r.mix.best!=null).sort((a,b)=>b.mix.best-a.mix.best).map(r=>({r,v:fmt(r.mix.best)+" P",sub:`${r.mix.runs||1}× gespielt`}));
   if(mode==="duel") return rows.map(r=>({r,d:duelRec(r)})).filter(x=>x.d.w+x.d.l+x.d.d>0).sort((a,b)=>b.d.w-a.d.w||a.d.l-b.d.l||b.d.d-a.d.d).map(x=>({r:x.r,v:pl(x.d.w,"Sieg","Siege"),sub:`${x.d.w} S · ${x.d.d} U · ${x.d.l} N`}));
   if(mode==="acc") return rows.map(r=>({r,a:acc(r)})).filter(x=>x.a.n>=5).sort((a,b)=>b.a.p-a.a.p||b.a.n-a.a.n).map(x=>({r:x.r,v:x.a.p+" %",sub:pl(x.a.n,"Antwort","Antworten")}));
@@ -515,7 +540,7 @@ function renderRank(){
   const mode=$("rankSel").value, box=$("rankBox");
   const hints={all:"Alle Punkte aus allen Fächern zusammen.",total:"Alle Punkte in diesem Fach aus Solo-Runden, Duellen und Live-Battles.",mix:"Bester Punktestand in einer Solo-Runde „Gemischt“ (15 Fragen).",
     duel:"Gewonnene Duelle. S = Sieg, U = Unentschieden, N = Niederlage.",acc:"Anteil richtiger Antworten über alle Modi (ab 5 Antworten).",
-    map:"Für jedes Thema: wer die höchste Trefferquote hat (ab "+MINN+" Antworten im Thema).",calc:"Bester Punktestand in einer Solo-Runde „Nur Rechnen“."};
+    map:"Für jedes Thema: wer die höchste Trefferquote hat (ab "+MINN+" Antworten im Thema).",endlos:"Beste Endlos-Runde (bis zum ersten Fehler).",blitz:"Beste Blitzrunde (15 Fragen, 10 s).",pruefung:"Beste Klausur-Simulation (20 Fragen).",calc:"Bester Punktestand in einer Solo-Runde „Nur Rechnen“."};
   $("rankHint").textContent= hints[mode] || "Trefferquote in diesem Thema über alle Modi – Bestwert = beste Solo-Runde in diesem Thema.";
   if(!BE.ok){ box.innerHTML=`<p class="muted">Keine Verbindung zur Rangliste.</p>`; return; }
   if(mode==="map"){
@@ -769,7 +794,7 @@ function playDuelRound(d,r){
       if(isShown("vQuiz")||location.hash==="#duell-spiel"){ location.hash="duell"; show("vDuel"); renderDuel(); }
       return;
     }
-    const q=QBY[rd.q[i]];
+    const q=qInst(QBY[rd.q[i]], d.id+":"+r+":"+i);
     // Platzhalter speichern: wer die Frage sieht und abbricht, bekommt 0 Punkte
     arr.push({f:0,p:0});
     try{ await BE.update("duels/"+d.id,{["r"+w+"."+r]:arr,up:Date.now()}); }catch(e){}
@@ -937,7 +962,7 @@ function onGame(){
     onPlayers(); return;
   }
   if(g.status==="q"){
-    const q=QBY[g.qids[g.idx]];
+    const q=qInst(QBY[g.qids[g.idx]],g.gid+":"+g.idx);
     if(live.shownIdx!==g.idx || live.phase!=="q"){
       live.shownIdx=g.idx; live.phase="q";
       if(location.hash!=="#battle") location.hash="battle";
@@ -970,7 +995,7 @@ function onGame(){
     if(live.phase!=="end"){ live.phase="end"; if(cur) clearInterval(cur.timerId); $("pauseOv").classList.add("hidden"); show("vPodium");
       if(location.hash!=="#siegerehrung") location.hash="siegerehrung";
       $("liveReviewH").textContent="❌ Fehler zum Nachlernen";
-      const res=g.qids.map((id,i)=>({id,frac:(live.myAns[i]||{}).f||0,pts:(live.myAns[i]||{}).p||0})); renderReview(res,$("liveReview"));
+      const res=g.qids.map((id,i)=>({id,seed:g.gid+":"+i,frac:(live.myAns[i]||{}).f||0,pts:(live.myAns[i]||{}).p||0})); renderReview(res,$("liveReview"));
       if(!live.saved){ live.saved=true; saveRank(d=>{ addStats(d,res); d.games=(d.games||0)+1; }); }
       clearInterval(live.hostTimer); clearInterval(live.hbTimer);
       setTimeout(()=>confetti(320),150); }
@@ -978,12 +1003,12 @@ function onGame(){
   }
 }
 function renderReveal(){
-  const g=live.game, q=QBY[g.qids[g.idx]], mine=live.myAns[g.idx]||{f:0,p:0};
+  const g=live.game, q=qInst(QBY[g.qids[g.idx]],g.gid+":"+g.idx), mine=live.myAns[g.idx]||{f:0,p:0};
   $("rvCount").textContent=`Frage ${g.idx+1}/${g.qids.length}`; $("rvTopic").textContent=TOPICS[q.t]; $("rvQ").textContent=q.q;
   const good=mine.f===1, part=mine.f>0&&mine.f<1;
   $("rvMine").innerHTML=`<div class="fb ${good?"ok":"bad"}"><b>${good?"✅ Richtig!":part?"🟡 Teilweise richtig":"❌ Leider falsch"} · +${mine.p} P</b></div>`;
   $("rvAns").innerHTML=`<p class="small" style="margin:10px 0 0"><b style="color:var(--ok)">Lösung:</b> ${esc(solText(q))}</p>`;
-  $("rvExp").textContent=q.e; $("rvWaitTxt").textContent="Der Host startet gleich die nächste Frage …";
+  $("rvExp").innerHTML=esc(q.e)+altHtml(q); $("rvWaitTxt").textContent="Der Host startet gleich die nächste Frage …";
   $("hostNext").classList.toggle("hidden",!live.isHost); $("rvWait").classList.toggle("hidden",live.isHost);
   $("hostNext").textContent = g.idx+1<g.qids.length ? "Nächste Frage →" : "🏆 Siegerehrung";
 }
@@ -1055,7 +1080,7 @@ $("hotStart").onclick=()=>{
   if(names.length<2){ $("hotMsg").textContent="Bitte mindestens 2 Namen eintragen."; return; }
   LS.set(G+"hot_names",JSON.stringify(names));
   const topic=$("hotTopic").value;
-  hot={names,topic,ids:pickRound(topic),qi:0,pi:0,scores:names.map(()=>0),res:names.map(()=>[]),curRes:[]};
+  hot={names,topic,seed:newSeed(),ids:pickRound(topic),qi:0,pi:0,scores:names.map(()=>0),res:names.map(()=>[]),curRes:[]};
   go("vPass","reihum-spiel"); hotPass();
 };
 function hotTable(highlight){
@@ -1070,7 +1095,7 @@ function hotPass(){
   $("passBoard").innerHTML = hot.qi>0 ? `<h2>Zwischenstand</h2>`+hotTable(hot.pi) : `<p class="muted small" style="margin:0">Reihenfolge: ${hot.names.map(esc).join(" → ")}</p>`;
 }
 $("passGo").onclick=()=>{
-  const q=QBY[hot.ids[hot.qi]], pi=hot.pi, last=pi+1>=hot.names.length;
+  const q=qInst(QBY[hot.ids[hot.qi]],hot.seed+":"+hot.qi), pi=hot.pi, last=pi+1>=hot.names.length;
   renderQuestion(q,{label:`Frage ${hot.qi+1}/${hot.ids.length} · ${hot.names[pi]}`,score:hot.scores[pi],canPause:true,deadline:Date.now()+TIME[q.type]*1000,
     onDone:(res,timeout)=>{
       hot.scores[pi]+=res.pts; hot.res[pi].push({id:q.id,frac:res.frac}); hot.curRes[pi]=res;
@@ -1082,14 +1107,14 @@ $("passGo").onclick=()=>{
     }});
 };
 function hotReveal(){
-  const q=QBY[hot.ids[hot.qi]]; if(cur) clearInterval(cur.timerId);
+  const q=qInst(QBY[hot.ids[hot.qi]],hot.seed+":"+hot.qi); if(cur) clearInterval(cur.timerId);
   markSeen(q.id, hot.curRes.every(r=>r&&r.frac===1));
   show("vReveal");
   $("rvCount").textContent=`Frage ${hot.qi+1}/${hot.ids.length}`; $("rvTopic").textContent=TOPICS[q.t]; $("rvQ").textContent=q.q;
   $("rvMine").innerHTML=`<div class="dist">`+hot.names.map((n,i)=>{const r=hot.curRes[i]||{frac:0,pts:0};
     const ic=r.frac===1?"✅":r.frac>0?"🟡":"❌"; return `<div class="dl"><span>${ic}</span><b style="flex:1">${esc(n)}</b><span>+${r.pts} P</span></div>`;}).join("")+`</div>`;
   $("rvAns").innerHTML=`<p class="small" style="margin:12px 0 0"><b style="color:var(--ok)">Lösung:</b> ${esc(solText(q))}</p>`;
-  $("rvDist").innerHTML=""; $("rvExp").textContent=q.e;
+  $("rvDist").innerHTML=""; $("rvExp").innerHTML=esc(q.e)+altHtml(q);
   const best=Math.max(...hot.scores), leaders=hot.names.filter((n,i)=>hot.scores[i]===best);
   $("rvLeader").textContent = best<=0 ? "Noch hat niemand Punkte – weiter geht's!" : leaders.length>1 ? `🤝 Gleichstand an der Spitze: ${leaders.join(" & ")} mit ${fmt(best)} Punkten!` : `👑 ${leaders[0]} führt mit ${fmt(best)} Punkten!`;
   $("rvBoard").innerHTML=hotTable(-1);
@@ -1106,7 +1131,7 @@ function hotEnd(){
   $("podium").innerHTML=cell(ps[1],"p2","🥈")+cell(ps[0],"p1","🥇")+cell(ps[2],"p3","🥉");
   $("finalBoard").innerHTML=hotTable(-1);
   $("liveReviewH").textContent="❌ Hier lag mindestens eine:r daneben";
-  const res=hot.ids.map((id,qi)=>({id,frac:Math.min(...hot.res.map(r=>(r[qi]||{frac:0}).frac))}));
+  const res=hot.ids.map((id,qi)=>({id,seed:hot.seed+":"+qi,frac:Math.min(...hot.res.map(r=>(r[qi]||{frac:0}).frac))}));
   renderReview(res,$("liveReview"));
   setTimeout(()=>confetti(320),150);
 }

@@ -291,6 +291,51 @@ try{
   ok(await L.evaluate(()=>solo.topic==="0"), "Aus der Fragenliste direkt das Thema spielen");
   await L.evaluate(()=>{ stopQuiz(); });
 
+  /* ---------- 14. Varianten & weitere Spielmodi ---------- */
+  console.log("Varianten & Spielmodi");
+  const V=await ctx.newPage(); V.on("pageerror",e=>errors.push("V: "+e.message));
+  await V.goto(`${URL0}?mock=1&uid=uv&fach=bwl`); await V.waitForSelector("#conn.on"); await V.fill("#nick","Vera");
+  const vr=await V.evaluate(()=>{
+    const out={bad:[],gen:0,diff:0,same:true,qv:0};
+    for(const f of FAECHER){ selectFach(f.kurz);
+      for(const b of f.q.filter(q=>q.gen||q.qv)){
+        const texts=new Set();
+        for(let k=0;k<25;k++){ const q=qInst(b,"s"+k); texts.add(q.q+"|"+q.a);
+          renderQuestion(q,{label:"x",score:0,canPause:false,deadline:Date.now()+60000,onDone:()=>{}});
+          if(q.type==="mc") cur.sel=cur.shuffled.findIndex(o=>o.i===q.a);
+          else if(q.type==="match") cur.matchSel=cur.shuffled.map(it=>it.c);
+          else document.getElementById("numIn").value=String(q.a).replace(".",",");
+          if(score().frac!==1) out.bad.push(b.id+"/s"+k); clearInterval(cur.timerId); }
+        if(b.gen) out.gen++; if(b.qv) out.qv++; if(texts.size>1) out.diff++;
+        if(JSON.stringify(qInst(b,"x"))!==JSON.stringify(qInst(b,"x"))) out.same=false;
+      } }
+    selectFach("bwl"); stopQuiz(); show("vHome"); renderHome(); return out; });
+  ok(vr.bad.length===0, `${vr.gen} Rechenaufgaben mit neuen Zahlen + ${vr.qv} umformulierte Fragen: richtige Antwort zählt in allen Varianten`+(vr.bad.length?" – "+vr.bad.slice(0,5).join(","):""));
+  ok(vr.diff===vr.gen+vr.qv - 0 || vr.diff>=vr.gen, `Varianten unterscheiden sich wirklich (${vr.diff})`);
+  ok(vr.same, "Gleicher Startwert → gleiche Variante (fair in Duell & Live)");
+  // Endlos
+  await V.click("#goEndlos"); await answer(V,true); await V.waitForFunction(()=>cur&&cur.answered&&!document.getElementById("actBtn").disabled); await V.click("#actBtn");
+  await answer(V,false); await V.waitForFunction(()=>cur&&cur.answered&&!document.getElementById("actBtn").disabled);
+  ok(/Auswertung/.test(await V.textContent("#actBtn")), "Endlos: nach dem ersten Fehler ist Schluss");
+  await V.click("#actBtn"); await V.waitForSelector("#vEnd:not(.hidden)");
+  ok((await V.textContent("#endDetail")).includes("1 richtig in Folge"), "Endlos: Ergebnis zeigt die Serie");
+  // Blitz
+  await V.click("#homeBtn"); await V.click("#goBlitz");
+  const bz=await V.evaluate(()=>[solo.ids.length, solo.ids.every(id=>QBY[id].type==="mc"), cur.limit, document.getElementById("pauseBtn").classList.contains("hidden")]);
+  ok(bz[0]===15 && bz[1] && bz[2]===10 && bz[3], "Blitz: 15 Auswahlfragen, 10 Sekunden, keine Pause");
+  await V.evaluate(()=>{ stopQuiz(); location.hash=""; }); await V.waitForSelector("#vHome:not(.hidden)");
+  // Klausur-Simulation
+  await V.click("#goPruef");
+  ok(await V.evaluate(()=>solo.ids.length===20), "Klausur-Simulation: 20 Fragen");
+  await answer(V,false); await V.waitForFunction(()=>cur&&cur.answered);
+  const fb=await V.textContent("#qFb");
+  ok(/Auflösung gibt es am Ende/.test(fb) && !/Richtig:|Leider falsch/.test(fb), "Klausur-Simulation: keine Auflösung zwischendurch");
+  await V.click("#actBtn");
+  for(let i=1;i<20;i++){ await answer(V,true); await V.waitForFunction(()=>cur&&cur.answered&&!document.getElementById("actBtn").disabled); await V.click("#actBtn"); }
+  await V.waitForSelector("#vEnd:not(.hidden)");
+  ok((await V.textContent("#reviewBox")).includes("Lösung"), "Klausur-Simulation: Auflösung der Fehler am Ende");
+  ok((await V.textContent("#endMode")).includes("Klausur"), "Ergebnis zeigt „Klausur-Simulation“");
+
   /* ---------- 9. Jede Frage jedes Fachs: richtige Antwort wird als richtig gewertet ---------- */
   console.log("Alle Fragen aller Fächer");
   const F=await ctx.newPage(); F.on("pageerror",e=>errors.push("F: "+e.message));

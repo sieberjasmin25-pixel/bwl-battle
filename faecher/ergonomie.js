@@ -316,5 +316,37 @@ const Q = [
  o:["An der Arbeitsanweisung und an der Punktzahl der Aufgabe","An der Länge der Aufgabenstellung","An der Seitenzahl","Gar nicht – immer so viel wie möglich schreiben"],a:0,
  e:"Wer zu wenig schreibt, verliert Punkte; wer zu viel schreibt, verliert Zeit. Tipp: Beispiele aus Ernährungs-Apps zeigen, dass man die Begriffe anwenden kann."}
 ];
+
+/* ===== Varianten =====
+   gen: Rechenaufgabe mit neuen Zahlen (r = Zufallsfunktion, im Duell/Live für alle gleich)
+   qv:  andere Formulierungen derselben Frage (Antworten bleiben gleich)
+   alt: was laut Unterlagen auch richtig/vertretbar ist */
+const pick=(r,a)=>a[Math.floor(r()*a.length)];
+const de=n=>Number(n).toLocaleString("de-DE");
+const VAR = (gen,qv,alt)=>Q.forEach(q=>{ if(gen[q.id]) q.gen=gen[q.id]; if(qv[q.id]) q.qv=qv[q.id]; if(alt[q.id]) q.alt=alt[q.id]; });
+
+const sus=r=>{ const ans=[]; for(let i=0;i<10;i++) ans.push(i%2===0?pick(r,[2,3,4,4,5,5]):pick(r,[1,1,2,2,3,4]));
+  const odd=[0,2,4,6,8].map(i=>ans[i]-1), even=[1,3,5,7,9].map(i=>5-ans[i]);
+  const so=odd.reduce((a,b)=>a+b,0), se=even.reduce((a,b)=>a+b,0), v=(so+se)*2.5;
+  return {q:`SUS: Eine Testperson antwortet ${ans.join(" · ")}. Wie hoch ist der SUS-Wert?`, a:v,
+    e:`Ungerade (${[0,2,4,6,8].map(i=>ans[i]).join(",")}) je −1 → ${odd.join("+")} = ${so}. Gerade (${[1,3,5,7,9].map(i=>ans[i]).join(",")}) je 5 − Antwort → ${even.join("+")} = ${se}. (${so}+${se}) × 2,5 = ${de(v)} → ${v>68?"über":v<68?"unter":"genau beim"} Durchschnitt von etwa 68. Kein Prozentwert!`}; };
+VAR({
+  su1: sus, su3: sus,
+  su4: r=>{ const nr=pick(r,[1,2,3,4,5,6,7,8,9,10]), ans=pick(r,[1,2,3,4,5]), even=nr%2===0, pts=even?5-ans:ans-1;
+    return {q:`SUS-Aussage ${nr} wird mit ${ans} beantwortet. Wie viele Punkte bringt das?`, a:pts,
+      e:`Aussage ${nr} ist ${even?"gerade (negativ formuliert) → 5 − Antwort":"ungerade (positiv formuliert) → Antwort − 1"} = ${pts}. Eselsbrücke: „Ungerade minus eins, fünf minus gerade, mal zweieinhalb.“`}; }
+},{
+  ip4:["Die Nutzerin kann eine angefangene Mahlzeiterfassung nicht unterbrechen und später fortsetzen. Welches Prinzip ist verletzt?"],
+  mm4:["Ein Eintrag lässt sich per langem Drücken bearbeiten, aber nichts in der App weist darauf hin. Was fehlt?"],
+  he1:["Eine fertige App soll am Ende mit einer Konkurrenz-App verglichen werden. Formative oder summative Evaluation?"],
+  ha2:["Nach dem Tippen auf „Speichern“ passiert nichts Sichtbares. Was hilft gegen diese Kluft der Bewertung?"]
+},{
+  us1:"Die Definition darf in eigenen Worten stehen – alle Bausteine (Nutzende, Kontext, Ziele, 3 Kriterien) müssen drin sein.",
+  ip7:"Eigene Beispiele sind erlaubt, die Prinzipien dürfen leicht anders formuliert sein.",
+  he3:"Problem 3 auch: Flexibilität und Effizienz · Problem 4 auch: Fehlervermeidung – bei mehreren passenden Heuristiken zählt die Begründung.",
+  he8:"Schweregrad 3 ist laut Musterlösung auch noch okay.",
+  fe5:"Richtig sind z. B.: aktive Rückfrage „roh oder gekocht?“, Pflichtauswahl mit kurzer Erklärung, vorausgewählte Checkbox oder roh und gekocht als getrennte Einträge.",
+  su6:"Auch: Es war nur eine Testperson, und Effektivität und Effizienz werden mit dem SUS nicht gemessen."
+});
 (window.FAECHER=window.FAECHER||[]).push({kurz:"ergo", name:"Software-Ergonomie", kurzname:"Ergonomie", icon:"💻", topics:TOPICS, q:Q});
 })();

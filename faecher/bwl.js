@@ -411,5 +411,51 @@ const Q = [
  o:["Wer wem unterstellt ist und wer wofür zuständig ist","In welcher Reihenfolge eine Beratung abläuft","Wie hoch das Budget im nächsten Jahr ist","Welche Rechtsform der Betrieb hat"],a:0,
  e:"Aufbauorganisation = Hierarchie und Zuständigkeiten. Linien-, Matrix- und Prozessorganisation sind Formen davon."}
 ];
+
+/* ===== Varianten =====
+   gen: Rechenaufgabe mit neuen Zahlen (r = Zufallsfunktion, im Duell/Live für alle gleich)
+   qv:  andere Formulierungen derselben Frage (Antworten bleiben gleich)
+   alt: was laut Unterlagen auch richtig/vertretbar ist */
+const pick=(r,a)=>a[Math.floor(r()*a.length)];
+const de=n=>Number(n).toLocaleString("de-DE");
+const VAR = (gen,qv,alt)=>Q.forEach(q=>{ if(gen[q.id]) q.gen=gen[q.id]; if(qv[q.id]) q.qv=qv[q.id]; if(alt[q.id]) q.alt=alt[q.id]; });
+
+const wirt=(r,intro)=>{ const n=pick(r,[30,40,45,50,60,70,80]), p=pick(r,[60,70,75,80,90,100]), W=pick(r,[0.8,0.9,1.1,1.2,1.25,1.4,1.5]);
+  const ert=n*p, auf=Math.round(ert/W/100)*100, a=Math.round(ert/auf*100)/100;
+  return {q:`${intro} ${n} Beratungen à ${p} € durch. Der Aufwand beträgt ${de(auf)} €. Wie hoch ist die Wirtschaftlichkeit? (2 Nachkommastellen)`, a,
+    e:`Ertrag = ${n} × ${p} € = ${de(ert)} €. Wirtschaftlichkeit = Ertrag ÷ Aufwand = ${de(ert)} € ÷ ${de(auf)} € = ${de(a)} → ${a>1?"wirtschaftlich (Gewinnzone): Der Ertrag liegt über dem Aufwand.":a<1?"unwirtschaftlich (Verlust): Der Aufwand ist größer als der Ertrag.":"genau an der Gewinnschwelle."}`}; };
+const divi=r=>{ const rate=pick(r,[55,60,65,70,75,80,90,95,100,120]), h=pick(r,[200,250,300,320,400,450,480,500]), k=rate*h;
+  return {q:`Eine Beratungseinheit hat im Monat Gesamtkosten von ${de(k)} € und erbringt ${h} Beratungsstunden. Kosten je Stunde (in €)?`, a:rate,
+    e:`Divisionskalkulation: Gesamtkosten ÷ Leistungseinheiten = ${de(k)} € ÷ ${h} Std. = ${rate} €/Std. Funktioniert nur bei gleichartigen Leistungen.`}; };
+const dbs=r=>{ const p=pick(r,[80,90,100,110,120,140,150]), v=pick(r,[20,25,30,40,50]); return {p,v,db:p-v}; };
+VAR({
+  r1a: r=>wirt(r,"Eine Beratungsstelle führt im Monat"),
+  r1c: r=>wirt(r,"Eine Ernährungspraxis führt im Monat"),
+  r1e: r=>{ const p=pick(r,[60,75,80,90,100,120]), n=pick(r,[25,30,32,36,40,45]), auf=p*n;
+    return {q:`Eine Beratung bringt ${p} €, der Monatsaufwand beträgt ${de(auf)} €. Bei wie vielen Beratungen liegt die Wirtschaftlichkeit genau bei 1?`, a:n,
+      e:`Wirtschaftlichkeit = 1 heißt Ertrag = Aufwand: ${de(auf)} € ÷ ${p} € = ${n} Beratungen. Darüber Gewinnzone, darunter Verlust.`}; },
+  r2a: divi, r2d: divi,
+  r2c: r=>{ const {p,v,db}=dbs(r), m=pick(r,[150,200,250,300,350,400]), fix=db*m;
+    return {q:`Ein Beratungspaket kostet ${p} €, variable Kosten ${v} € je Paket, Fixkosten ${de(fix)} €. Wie viele Pakete bis zum Break-even?`, a:m,
+      e:`Deckungsbeitrag = ${p} € − ${v} € = ${db} €. Break-even-Menge = Fixkosten ÷ DB = ${de(fix)} € ÷ ${db} € = ${m} Pakete. Jedes weitere Paket erhöht den Gewinn um den vollen DB von ${db} €.`}; },
+  r2f: r=>{ const {p,v,db}=dbs(r), m=pick(r,[120,150,180,200,240,300]), fix=db*m;
+    return {q:`Fixkosten ${de(fix)} €, Erlös je Beratung ${p} €, variable Kosten je Beratung ${v} €. Break-even-Menge?`, a:m,
+      e:`DB = ${p} € − ${v} € = ${db} €. Break-even = ${de(fix)} € ÷ ${db} € = ${m} Beratungen. Ab dann sind alle Kosten gedeckt.`}; },
+  r2e: r=>{ const {p,v,db}=dbs(r);
+    return {q:`Ein Kurs bringt ${p} € Erlös, die variablen Kosten liegen bei ${v} €. Wie hoch ist der Deckungsbeitrag je Kurs (in €)?`, a:db,
+      e:`Deckungsbeitrag = Erlös − variable Kosten = ${p} € − ${v} € = ${db} €. Er deckt zuerst die variablen Kosten, der Rest fließt in die Fixkosten.`}; },
+  r2k: r=>{ const {p,v,db}=dbs(r), be=pick(r,[200,250,300,400]), fix=db*be, sold=be-pick(r,[20,40,50,60,80]), loss=fix-db*sold;
+    return {q:`Fixkosten ${de(fix)} €, Erlös ${p} € je Paket, variable Kosten ${v} € je Paket. Verkauft werden nur ${sold} Pakete. Wie hoch ist der Verlust (in €)?`, a:loss,
+      e:`DB je Paket = ${p} € − ${v} € = ${db} €. DB gesamt = ${sold} × ${db} € = ${de(db*sold)} €. Das reicht nicht für ${de(fix)} € Fixkosten → ${de(loss)} € Verlust. Break-even läge bei ${de(fix)} € ÷ ${db} € = ${be} Paketen.`}; }
+},{
+  op1:["Welche Aussage beschreibt das Minimalprinzip richtig?","Was gilt beim Minimalprinzip?"],
+  em1:["Ein Mitarbeiter erstellt 25 Ernährungspläne pro Woche. Welche Größe beschreibt das?","Eine Klinikküche zählt die Mahlzeiten je Küchenkraft und Tag. Welche Größe ist das?"],
+  mf2:["Am Quartalsende vergleicht die Leitung geplante und tatsächliche Kosten. Welche Managementfunktion ist das?"],
+  df2:["Ein Krankenhaus baut einen neuen OP-Trakt. Wer finanziert das im dualen System?","Wer trägt bei der dualen Finanzierung die Kosten für Großgeräte wie ein MRT?"],
+  kz1:["Mit welcher Formel prüft man, ob kurzfristige Schulden sofort mit vorhandenem Geld bezahlt werden können (Liquidität 1. Grades)?"]
+},{
+  rf5:"Auch vertretbar: GmbH – wenn sie das Haftungsrisiko scheuen und 12.500 € einzahlen können. Bei „Begründen“ zählt das Argument (Karteikarte).",
+  r2b:"Was man stattdessen macht (mehrere Wege richtig): Kosten je Leistungsart getrennt erfassen und kalkulieren – oder als Stichwort die Zuschlagskalkulation (Karteikarte)."
+});
 (window.FAECHER=window.FAECHER||[]).push({kurz:"bwl", name:"Grundlagen der BWL", kurzname:"BWL", icon:"📊", topics:TOPICS, q:Q});
 })();

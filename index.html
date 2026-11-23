@@ -70,6 +70,8 @@ tr.click{cursor:pointer}
 .dot{flex:0 0 10px;width:10px;height:10px;border-radius:50%;background:var(--accent);animation:pl 1s infinite alternate}@keyframes pl{to{opacity:.2}}
 .tlist{display:grid;gap:8px} .tlist button{text-align:left;display:flex;justify-content:space-between;gap:8px;align-items:center}
 canvas#conf{position:fixed;inset:0;pointer-events:none;z-index:60}
+.modebtn{padding:10px 4px;font-size:1.5rem;line-height:1.15;display:flex;flex-direction:column;align-items:center;gap:2px}
+.modebtn span{font-size:.82rem;font-weight:700}
 .trow{display:flex;gap:8px;align-items:stretch} .trow>button:first-child{flex:1;min-width:0} .trow .eye{flex:0 0 auto;padding:8px 10px;font-size:.85rem;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px}
 .sadpop{position:fixed;left:50%;top:38%;font-size:5.5rem;line-height:1;transform:translate(-50%,-50%) scale(.4);opacity:0;pointer-events:none;z-index:61;animation:sadpop 1.4s ease-out forwards}
 @keyframes sadpop{18%{opacity:1;transform:translate(-50%,-50%) scale(1.15)}32%{transform:translate(-50%,-50%) scale(1)}75%{opacity:1}100%{opacity:0;transform:translate(-50%,-25%) scale(1)}}
@@ -130,6 +132,15 @@ canvas#conf{position:fixed;inset:0;pointer-events:none;z-index:60}
     <button class="mode needname" id="goMix"><span class="ic">🎯</span><div><b>Solo · Gemischt</b><span>15 Fragen aus allen Themen, bevorzugt welche, die du noch nicht hattest</span></div></button>
     <button class="mode needname" id="goCalc"><span class="ic">🧮</span><div><b>Solo · Nur Rechnen</b><span id="goCalcTxt">Nur Rechenaufgaben aus allen Themen</span></div></button>
     <button class="mode needname hidden" id="goWrong"><span class="ic">❌</span><div><b>Falsche nochmal üben</b><span id="goWrongTxt"></span></div></button>
+    <div class="card" style="margin:0">
+      <b>🎲 Weitere Spielmodi</b>
+      <div class="btnrow" style="grid-template-columns:1fr 1fr 1fr;margin-top:8px">
+        <button class="btn2 needname modebtn" id="goEndlos">♾️<span>Endlos</span></button>
+        <button class="btn2 needname modebtn" id="goBlitz">⚡<span>Blitz</span></button>
+        <button class="btn2 needname modebtn" id="goPruef">📝<span>Klausur</span></button>
+      </div>
+      <p class="muted small" style="margin:8px 0 0">Endlos: bis zum ersten Fehler · Blitz: 15 Fragen, nur 10 s · Klausur: 20 Fragen, Auflösung erst am Ende</p>
+    </div>
     <button class="mode needname" id="goTopics"><span class="ic">📚</span><div><b>Solo · Nach Thema</b><span>Ein Thema gezielt üben, mit eigener Rangliste pro Thema</span></div></button>
     <button class="mode needname needonline" id="goDuels"><span class="ic">⚔️</span><div><b>Duelle</b><span>1 gegen 1 wie Quizduell: 6 Runden à 3 Fragen, jede:r spielt, wann sie/er Zeit hat</span></div><span class="badge hidden" id="duelBadge"></span></button>
     <button class="mode needname needonline" id="goLive"><span class="ic">🔴</span><div><b>Live-Battle</b><span>Viele Handys gleichzeitig: Raum erstellen oder beitreten, wie Kahoot</span></div></button>

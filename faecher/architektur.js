@@ -343,5 +343,25 @@ const Q = [
  o:["Etwa 1 Minute pro Punkt","Etwa 5 Minuten pro Punkt","Etwa 10 Sekunden pro Punkt","Es gibt keine Faustregel"],a:0,
  e:"Erst alles durchlesen, Zeit einteilen, nichts leer lassen – Stichpunkte sind besser als nichts."}
 ];
+
+/* ===== Varianten =====
+   gen: Rechenaufgabe mit neuen Zahlen (r = Zufallsfunktion, im Duell/Live für alle gleich)
+   qv:  andere Formulierungen derselben Frage (Antworten bleiben gleich)
+   alt: was laut Unterlagen auch richtig/vertretbar ist */
+const pick=(r,a)=>a[Math.floor(r()*a.length)];
+const de=n=>Number(n).toLocaleString("de-DE");
+const VAR = (gen,qv,alt)=>Q.forEach(q=>{ if(gen[q.id]) q.gen=gen[q.id]; if(qv[q.id]) q.qv=qv[q.id]; if(alt[q.id]) q.alt=alt[q.id]; });
+
+VAR({},{
+  sc2:["Wo wird geprüft, ob Maras Tagesziel erreicht ist?"],
+  si4:["Jemand tippt „; DELETE FROM mahlzeit“ in die Rezeptsuche. Was soll der Server tun?"],
+  ki2:["Die Foto-Erkennung meldet „Linsensuppe, 55 Prozent“. Welche Sicherung passt, bevor der Eintrag gespeichert wird?"],
+  dq1:["Eine Nährwert-Quelle ist sehr genau, darf laut Nutzungsbedingungen aber nicht in kostenpflichtigen Apps genutzt werden. Welches Kriterium spricht dagegen?"]
+},{
+  st4:"Monolith oder modularer Monolith – beides vertretbar, wenn begründet. Der modulare Monolith hat den Vorteil, dass man später leichter Dienste herauslösen kann.",
+  ev5:"Oft passen mehrere Antworten – entscheidend ist die Begründung mit den fünf Fragen (Tempo, ohne Netz, Rechenleistung, sensible Daten, Häufigkeit).",
+  qa3:"In der Besprechung wurde bei der ausgefallenen Foto-Erkennung auch „funktionale Eignung“ genannt – mit Begründung kann das zählen.",
+  st6:"Stichpunkte sind okay, solange die Argumentationskette nachvollziehbar ist."
+});
 (window.FAECHER=window.FAECHER||[]).push({kurz:"arch", name:"Software-Architektur", kurzname:"Architektur", icon:"🏗️", topics:TOPICS, q:Q});
 })();
