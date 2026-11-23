@@ -412,6 +412,46 @@ const Q = [
  e:"Aufbauorganisation = Hierarchie und Zuständigkeiten. Linien-, Matrix- und Prozessorganisation sind Formen davon."}
 ];
 
+/* ===== Mehrfachauswahl & Reihenfolge ===== */
+Q.push(
+{id:"mu1",t:2,type:"multi",q:"Welche gehören zu den fünf Managementfunktionen?",
+ o:["Planung","Organisation","Personaleinsatz","Führung","Kontrolle","Beschaffung","Produktion","Marketing"],c:[0,1,2,3,4],
+ e:"Die fünf Managementfunktionen: Planung, Organisation, Personaleinsatz, Führung, Kontrolle. Beschaffung und Produktion sind Sachfunktionen – die Managementfunktionen koordinieren sie (komplementär)."},
+{id:"mu2",t:3,type:"multi",q:"Welche Merkmale sind Besonderheiten des Gesundheitsmarkts?",
+ o:["Dritte-Partei-Zahler (meist die Krankenkasse)","Stark regulierte Preise","Qualität für Patient:innen kaum beurteilbar","Begrenzter Marktzutritt (Zulassung, Bedarfsplanung)","Preis bildet sich frei über Angebot und Nachfrage","Käufer:in trägt die Kosten selbst"],c:[0,1,2,3],
+ e:"Die letzten beiden beschreiben den klassischen Markt. Die vier Besonderheiten sind laut Folie Symptome von Marktversagen."},
+{id:"mu3",t:14,type:"multi",q:"Welche sind konstitutive Merkmale eines Betriebs?",
+ o:["Kombination von Produktionsfaktoren","Prinzip des wirtschaftlichen Gleichgewichts","Prinzip der Wirtschaftlichkeit","Finanzielles Gleichgewicht","Gewinnmaximierung","Börsennotierung"],c:[0,1,2,3],
+ e:"Gewinnmaximierung ist ein Formalziel (Erwerbsprinzip) und gilt nicht für alle Betriebe."},
+{id:"mu4",t:7,type:"multi",q:"Welche Rechtsformen sind Kapitalgesellschaften?",
+ o:["GmbH","AG","GbR","Einzelunternehmen","OHG","KG"],c:[0,1],
+ e:"Kapitalgesellschaften (GmbH, AG) haften nur mit dem Gesellschaftsvermögen. GbR, OHG und KG sind Personengesellschaften."},
+{id:"mu5",t:9,type:"multi",q:"Welche Aussagen beschreiben Strukturqualität?",
+ o:["Alle Beraterinnen haben eine anerkannte Zusatzqualifikation","Die Praxis hat barrierefreie Beratungsräume","Es gibt eine Lehrküche für Kochkurse","Jede Erstberatung folgt einer Checkliste","Die Blutwerte der Klient:innen haben sich verbessert","Die Wartezeit wurde verkürzt"],c:[0,1,2],
+ e:"Struktur = Rahmenbedingungen (Personal, Ausstattung, Räume). Checkliste und Wartezeit = Prozessqualität, bessere Blutwerte = Ergebnisqualität."},
+{id:"mu6",t:11,type:"multi",q:"Welche Kosten sind Investitionskosten, die die Bundesländer tragen?",
+ o:["Neubau eines OP-Trakts","Neues MRT-Großgerät","Neue IT-Infrastruktur","Gehälter der Pflegekräfte","Verbandsmaterial","Strom und Heizung"],c:[0,1,2],
+ e:"Investitionskosten (Bauten, Großgeräte, IT) → Bundesländer. Laufende Betriebskosten (Personal, Material, Energie) → Krankenkassen."},
+{id:"mu7",t:4,type:"multi",q:"Welche Effekte führen laut Folie zu Marktversagen im Gesundheitswesen?",
+ o:["Informationsasymmetrie","Moral Hazard","Adverse Selektion","Positive Externalitäten","Kostendeckungsprinzip","Divisionskalkulation"],c:[0,1,2,3],
+ e:"Gegenmittel: Qualitätsvorgaben, Zuzahlungen, Versicherungspflicht, Präventionsförderung."},
+{id:"mu8",t:13,type:"multi",q:"Welche drei Kennzahlengruppen wurden in der Vorlesung behandelt?",
+ o:["Liquidität","Rentabilität","Produktivität","Stammkapital","Bedarfsdeckung","Fidelity"],c:[0,1,2],
+ e:"Liquidität = Zahlungsfähigkeit · Rentabilität = Erfolg im Verhältnis zum Kapital · Produktivität = Leistungsfähigkeit."},
+{id:"or1",t:2,type:"order",q:"Bring die fünf Managementfunktionen in die Reihenfolge aus der Vorlesung.",
+ items:["Planung – Ziele festlegen","Organisation – Aufgaben und Zuständigkeiten strukturieren","Personaleinsatz – Mitarbeitende auswählen und einsetzen","Führung – motivieren und anleiten","Kontrolle – Soll-Ist-Vergleich"],
+ e:"Erst wird geplant, dann organisiert, Personal eingesetzt und geführt – am Ende wird kontrolliert, ob der Plan erreicht wurde."},
+{id:"or2",t:12,type:"order",q:"Bring die Phasen des Controlling-Kreislaufs in die richtige Reihenfolge.",
+ items:["Planung – Ziele und Budgets festlegen","Steuerung – während der Periode nachjustieren","Kontrolle – Soll-Ist-Vergleich","Anpassung – Abweichungen in die neue Planung einspeisen"],
+ e:"Danach beginnt der Kreislauf wieder von vorn mit der (neuen) Planung."},
+{id:"or3",t:6,type:"order",q:"Rechenweg Wirtschaftlichkeit: Was machst du in welcher Reihenfolge?",
+ items:["Ertrag berechnen (Menge × Preis)","Ertrag durch Aufwand teilen","Ergebnis mit 1 vergleichen","Einen Satz zur Bedeutung schreiben (Gewinnzone / Verlust)"],
+ e:"> 1 = Gewinnzone, = 1 = Gewinnschwelle, < 1 = Verlust. Nach der Rechnung immer einen Satz zur Bedeutung schreiben (Karteikarte)."},
+{id:"or4",t:10,type:"order",q:"Rechenweg Break-even-Menge: in welcher Reihenfolge?",
+ items:["Deckungsbeitrag je Stück = Erlös − variable Kosten","Fixkosten durch den Deckungsbeitrag teilen","Ergebnis deuten: ab dieser Menge sind alle Kosten gedeckt"],
+ e:"Beispiel: (100 € − 40 €) = 60 € DB · 18.000 € ÷ 60 € = 300 Pakete → ab dem 301. Paket Gewinn."}
+);
+
 /* ===== Varianten =====
    gen: Rechenaufgabe mit neuen Zahlen (r = Zufallsfunktion, im Duell/Live für alle gleich)
    qv:  andere Formulierungen derselben Frage (Antworten bleiben gleich)

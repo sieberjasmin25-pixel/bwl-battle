@@ -25,6 +25,7 @@ async function answer(pg,good=true){
   await pg.waitForSelector("#vQuiz:not(.hidden) #actBtn:not(.hidden)"); await pg.waitForFunction(()=>cur&&!cur.answered);
   await pg.evaluate(good=>{
     const q=cur.q;
+    if(q.type==="multi"||q.type==="order"){ __fill(good); return; }
     if(q.type==="mc"){ const k=cur.shuffled.findIndex(o=>good?o.i===q.a:o.i!==q.a); document.querySelectorAll("#qBody .opt")[k].click(); }
     else if(q.type==="match"){ document.querySelectorAll("#qBody .mitem").forEach((m,k)=>{ const c=good?cur.shuffled[k].c:(cur.shuffled[k].c+1)%q.cats.length; m.querySelectorAll(".mchoices button")[c].click(); }); }
     else { const i=document.getElementById("numIn"); i.value=String(good?q.a:q.a+7).replace(".",","); i.dispatchEvent(new Event("input")); }
@@ -49,7 +50,8 @@ try{
   console.log("Solo · Nach Thema");
   await A.click("#homeBtn"); await A.waitForSelector("#vHome:not(.hidden)");
   await A.click("#goTopics"); await A.click("#topicList button[data-t='14']"); await A.click("#cfgStart");
-  for(let i=0;i<5;i++){ await answer(A,true); await A.click("#actBtn"); }
+  const nTop=await A.evaluate(()=>solo.ids.length);
+  for(let i=0;i<nTop;i++){ await answer(A,true); await A.waitForFunction(()=>cur&&cur.answered&&!document.getElementById("actBtn").disabled); await A.click("#actBtn"); }
   await A.waitForSelector("#vEnd:not(.hidden)");
   await A.waitForFunction(()=>/✓|🏆/.test(document.getElementById("saveState").textContent));
   const rA2=await A.evaluate(()=>JSON.parse(localStorage.getItem("mockdb:ranking/ua")));
@@ -136,7 +138,7 @@ try{
   await A.waitForFunction(()=>document.getElementById("lobCount").textContent.startsWith("3"));
   ok(true,"Host sieht 3 Personen im Warteraum");
   await A.click("#lobStart");
-  const nQ=5;
+  await A.waitForFunction(()=>live.game&&live.game.qids.length>0); const nQ=await A.evaluate(()=>live.game.qids.length);
   for(let i=0;i<nQ;i++){
     for(const [pg,g] of [[A,true],[B,i%2===0],[C,false]]){ await pg.waitForFunction(i=>live.game&&live.game.status==="q"&&live.game.idx===i&&cur&&!cur.answered,i); await answer(pg,g); }
     await A.waitForSelector("#vReveal:not(.hidden)"); await B.waitForSelector("#vReveal:not(.hidden)"); await C.waitForSelector("#vReveal:not(.hidden)");
@@ -145,7 +147,7 @@ try{
   }
   await A.waitForSelector("#vPodium:not(.hidden)"); await C.waitForSelector("#vPodium:not(.hidden)");
   ok((await C.textContent("#podium")).includes("Anna"), "Siegerehrung bei allen, Anna auf dem Podest");
-  await C.waitForFunction(()=>{const r=JSON.parse(localStorage.getItem("mockdb:ranking/uc")||"{}");return r.st&&r.st.t3&&r.st.t3.n===5;});
+  await C.waitForFunction(()=>{const r=JSON.parse(localStorage.getItem("mockdb:ranking/uc")||"{}");return r.st&&r.st.t3&&r.st.t3.n>=5;});
   ok(true,"Live-Ergebnis zählt in Cleos Themen-Statistik");
 
   /* ---------- 7. Reihum ---------- */
@@ -303,6 +305,7 @@ try{
         for(let k=0;k<25;k++){ const q=qInst(b,"s"+k); texts.add(q.q+"|"+q.a);
           renderQuestion(q,{label:"x",score:0,canPause:false,deadline:Date.now()+60000,onDone:()=>{}});
           if(q.type==="mc") cur.sel=cur.shuffled.findIndex(o=>o.i===q.a);
+          else if(q.type==="multi"||q.type==="order") __fill(true);
           else if(q.type==="match") cur.matchSel=cur.shuffled.map(it=>it.c);
           else document.getElementById("numIn").value=String(q.a).replace(".",",");
           if(score().frac!==1) out.bad.push(b.id+"/s"+k); clearInterval(cur.timerId); }
@@ -357,6 +360,42 @@ try{
   await C2.click("#goEndlos");
   ok(await C2.evaluate(()=>cfg.mode==="endlos"&&cfg.sel.size===TOPICS.length), "Startseite „Endlos“ öffnet die Auswahl mit allen Themen");
 
+  /* ---------- 16. Mehrfachauswahl & Reihenfolge per Tippen ---------- */
+  console.log("Mehrfachauswahl & Reihenfolge");
+  const M=await ctx.newPage(); M.on("pageerror",e=>errors.push("M: "+e.message));
+  await M.goto(`${URL0}?mock=1&uid=um&fach=ergo`); await M.waitForSelector("#conn.on");
+  const show1=async id=>M.evaluate(id=>{ window.__res=null; renderQuestion(QBY[id],{label:"t",score:0,canPause:false,deadline:Date.now()+60000,onDone:r=>{window.__res=r; showSolution(r,false);}}); },id);
+  // Reihenfolge: falsch beginnen, zurücknehmen, dann richtig
+  await show1("or1");
+  const ord=await M.evaluate(()=>cur.shuffled.map((o,k)=>({k,i:o.i})).sort((a,b)=>a.i-b.i).map(x=>x.k));
+  const btn=k=>M.locator("#orderBox button").nth(k);
+  await btn(ord[1]).click(); await btn(ord[2]).click();
+  ok((await btn(ord[2]).textContent()).startsWith("2"), "Reihenfolge: angetippte Schritte bekommen Nummern");
+  await btn(ord[1]).click();
+  ok(await M.evaluate(()=>cur.seq.length===0), "Nochmal tippen nimmt den Schritt (und alle danach) zurück");
+  ok(await M.isDisabled("#actBtn"), "Abgeben erst möglich, wenn alle Schritte gesetzt sind");
+  for(const k of ord) await btn(k).click();
+  await M.click("#actBtn"); await M.waitForFunction(()=>window.__res);
+  ok(await M.evaluate(()=>window.__res.frac===1 && document.querySelectorAll("#orderBox .right").length===4), "Richtige Reihenfolge → volle Punkte, alles grün");
+  await show1("or1");
+  const ord2=await M.evaluate(()=>cur.shuffled.map((o,k)=>({k,i:o.i})).sort((a,b)=>a.i-b.i).map(x=>x.k));
+  for(const k of [ord2[1],ord2[0],ord2[2],ord2[3]]) await M.locator("#orderBox button").nth(k).click();
+  await M.click("#actBtn"); await M.waitForFunction(()=>window.__res);
+  ok(await M.evaluate(()=>window.__res.frac===0.5 && /Platz/.test(document.getElementById("orderBox").textContent)), "Zwei vertauscht → Teilpunkte + Hinweis auf den richtigen Platz");
+  // Mehrfachauswahl
+  await show1("mu1");
+  const corr=await M.evaluate(()=>cur.shuffled.map((o,k)=>({k,c:QBY.mu1.c.includes(o.i)})).filter(x=>x.c).map(x=>x.k));
+  for(const k of corr.slice(0,3)) await M.locator("#multiBox button").nth(k).click();
+  await M.click("#actBtn"); await M.waitForFunction(()=>window.__res);
+  ok(await M.evaluate(()=>window.__res.frac===0.75 && document.querySelectorAll("#multiBox .miss").length===1), "Mehrfachauswahl: 3 von 4 → Teilpunkte, übersehene gestrichelt markiert");
+  await show1("mu1");
+  const all=await M.evaluate(()=>cur.shuffled.map((o,k)=>({k,c:QBY.mu1.c.includes(o.i)})));
+  for(const x of all.filter(x=>x.c)) await M.locator("#multiBox button").nth(x.k).click();
+  await M.locator("#multiBox button").nth(all.find(x=>!x.c).k).click();
+  await M.click("#actBtn"); await M.waitForFunction(()=>window.__res);
+  ok(await M.evaluate(()=>window.__res.frac===0.75 && document.querySelectorAll("#multiBox .wrong").length===1), "Ein falsches Kreuz zieht ab (4 richtig, 1 falsch → 75 %)");
+  await M.evaluate(()=>{ stopQuiz(); show("vHome"); });
+
   /* ---------- 9. Jede Frage jedes Fachs: richtige Antwort wird als richtig gewertet ---------- */
   console.log("Alle Fragen aller Fächer");
   const F=await ctx.newPage(); F.on("pageerror",e=>errors.push("F: "+e.message));
@@ -367,7 +406,8 @@ try{
       for(const q of f.q){
         renderQuestion(q,{label:"x",score:0,canPause:false,deadline:Date.now()+60000,onDone:()=>{}});
         if(q.type==="mc"){ cur.sel=cur.shuffled.findIndex(o=>o.i===q.a); }
-        else if(q.type==="match"){ cur.matchSel=cur.shuffled.map(it=>it.c); }
+        else if(q.type==="multi"||q.type==="order") __fill(true);
+          else if(q.type==="match"){ cur.matchSel=cur.shuffled.map(it=>it.c); }
         else { document.getElementById("numIn").value=String(q.a).replace(".",","); }
         const r=score(); if(r.frac!==1) bad.push(q.id); n++;
         if(!document.getElementById("qText").textContent) bad.push(q.id+"(leer)");

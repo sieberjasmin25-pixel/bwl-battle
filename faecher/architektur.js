@@ -344,6 +344,58 @@ const Q = [
  e:"Erst alles durchlesen, Zeit einteilen, nichts leer lassen – Stichpunkte sind besser als nichts."}
 ];
 
+/* ===== Mehrfachauswahl & Reihenfolge ===== */
+Q.push(
+{id:"mu1",t:6,type:"multi",q:"Was gehört in ein Kontextdiagramm?",
+ o:["Das System als ein einziger Kasten","Personen, die mit dem System arbeiten","Fremde Systeme","Beschriftete Pfeile","Eine Legende","Der eigene Server","Die eigene Datenbank","Die Tabellen der Datenbank"],c:[0,1,2,3,4],
+ e:"Server und eigene Datenbank sind das Innenleben – das zeigt erst das Containerdiagramm."},
+{id:"mu2",t:5,type:"multi",q:"Welche sind Qualitätsmerkmale aus der Vorlesung?",
+ o:["Funktionale Eignung","Leistungseffizienz","Kompatibilität","Sicherheit","Wartbarkeit","Übertragbarkeit","Beliebtheit im App-Store","Farbe des Logos"],c:[0,1,2,3,4,5],
+ e:"Dazu kommen Benutzbarkeit und Zuverlässigkeit – zusammen die acht Merkmale (ISO/IEC 25010)."},
+{id:"mu3",t:11,type:"multi",q:"Nach welchen Punkten entscheidet man zwischen (modularem) Monolith und Microservices?",
+ o:["Team (Größe)","Last","Reife (wie klar sind die Fachgrenzen?)","Auslieferung (zusammen oder je Team)","Farbe der App","Anzahl der Bildschirme"],c:[0,1,2,3],
+ e:"Die drei wichtigsten laut Folie: Team, Last, Reife – plus Umentscheidungspunkt."},
+{id:"mu4",t:10,type:"multi",q:"Welche sind Qualitätskriterien für Daten?",
+ o:["Vollständigkeit","Genauigkeit","Aktualität","Konsistenz","Herkunft","Lizenz","Kosten"],c:[0,1,2,3,4],
+ e:"Lizenz und Kosten sind Auswahlkriterien für eine Datenquelle (neben Qualität und Verfügbarkeit) – keine Qualitätskriterien der Daten selbst."},
+{id:"mu5",t:13,type:"multi",q:"Welche Fehlerarten einer KI wurden behandelt?",
+ o:["Halluzination","Falsche Erkennung","Verzerrung","Vorgabe nicht beachtet","Cache","Load Balancer"],c:[0,1,2,3],
+ e:"Sicherungen: Human in the loop, Prüfregel in der Logik, Rückfallebene."},
+{id:"mu6",t:7,type:"multi",q:"Welche Aufgaben gehören in die Logikschicht?",
+ o:["Tagesbedarf berechnen","Prüfen, ob Maras Wochenziel erreicht ist","Prüfen, ob ein Rezept ein Allergen der Person enthält","Den Knopf „Mahlzeit speichern“ anzeigen","Die Mahlzeiten der Woche aus der Datenbank laden","Warnsymbol bei Allergen anzeigen"],c:[0,1,2],
+ e:"Logik = fachliche Regeln und Berechnungen. Anzeigen = Darstellung, Laden = Datenzugriff."},
+{id:"mu7",t:1,type:"multi",q:"Welche HTTP-Methoden verändern Daten auf dem Server?",
+ o:["POST","PATCH","DELETE","GET"],c:[0,1,2],
+ e:"GET liest nur. POST legt neu an, PATCH ändert, DELETE löscht."},
+{id:"or1",t:0,type:"order",q:"Mara trägt einen Apfel ein: In welcher Reihenfolge laufen die Anfragen?",
+ items:["GET: Suche nach „Apfel“","GET: Nährwerte aus der fremden Lebensmittel-Datenbank","POST: Mahlzeit in der eigenen Datenbank speichern"],
+ e:"Lesen, lesen, neu anlegen. Die App fragt, der Server holt und prüft, die Datenbank speichert."},
+{id:"or2",t:8,type:"order",q:"In welcher Reihenfolge liest man eine SQL-Abfrage mit JOIN?",
+ items:["FROM","JOIN","WHERE","SELECT"],
+ e:"Erst schauen, welche Tabellen verbunden werden, dann filtern, zuletzt die Spalten auswählen."},
+{id:"or3",t:3,type:"order",q:"Bring die vier Teile eines Qualitätsszenarios in die richtige Reihenfolge.",
+ items:["Quelle – wer oder was löst aus?","Auslöser – was passiert?","Reaktion – was tut das System?","Messgröße – woran messen wir?"],
+ e:"Beispiel: Glukosesensor-Dienst → Messwert über Grenzwert → Warnung ans Handy → höchstens 60 Sekunden."},
+{id:"or4",t:9,type:"order",q:"Anmeldung mit Token: Was passiert in welcher Reihenfolge?",
+ items:["App schickt einmal Name und Passwort (POST /anmeldung)","Server gibt ein befristetes Token zurück","Bei jeder Anfrage läuft das Token mit – das Passwort nicht","Token läuft ab → neu anmelden"],
+ e:"Wie ein Tagesausweis. Wer das Token vorzeigt, wird bedient – darum läuft es ab."},
+{id:"or5",t:9,type:"order",q:"Die Fachkraft ruft ein Tagebuch auf: Was prüft der Server in welcher Reihenfolge?",
+ items:["Ist sie angemeldet? (Authentifizierung)","Hat die Klientin das Tagebuch freigegeben? (Autorisierung)","Erst dann: Tagebuch aus der Datenbank lesen"],
+ e:"Erst wer, dann was. Sonst meldet der Server „nicht angemeldet“ bzw. „keine Berechtigung“."},
+{id:"or6",t:11,type:"order",q:"Fallaufgabe Architekturstil: In welcher Reihenfolge baust du die Antwort auf?",
+ items:["Entscheidung: „Wir wählen …“","Begründung aus den Fakten (Team, Last, Reife, Auslieferung)","Umentscheidungspunkt mit Zahl","Schwächen der eigenen Wahl nennen"],
+ e:"Laut Dozent geben die Fallaufgaben die meisten Punkte – Stichpunkte sind okay, wenn die Argumentation nachvollziehbar ist."},
+{id:"or7",t:14,type:"order",q:"Eine Architektur mit Szenarien bewerten (vereinfacht nach ATAM): Was kommt wann?",
+ items:["Ziele und Fälle sammeln (Qualitätsbaum)","Die wichtigsten Fälle auswählen","Jeden Fall an der Architektur durchspielen","Risiken und Trade-offs aufschreiben","Entscheidung treffen und begründen"],
+ e:"„Nicht raten, ob eine Architektur gut ist, sondern Fälle durchspielen.“"},
+{id:"or8",t:12,type:"order",q:"Foto-Pipeline: Bring die Stufen in die richtige Reihenfolge.",
+ items:["Foto","Gericht erkennen","Portion schätzen","Nährwerte berechnen"],
+ e:"Jede Stufe ist austauschbar und einzeln testbar. Ein nicht abgefangener Fehler wandert bis zum Output durch."},
+{id:"or9",t:1,type:"order",q:"In welcher Reihenfolge stehen die Teile einer URL?",
+ items:["Protokoll (https)","Server (api.tellerrand.de)","Pfad (/lebensmittel)","Parameter (?suche=apfel)"],
+ e:"Das Fragezeichen trennt Pfad und Parameter."}
+);
+
 /* ===== Varianten =====
    gen: Rechenaufgabe mit neuen Zahlen (r = Zufallsfunktion, im Duell/Live für alle gleich)
    qv:  andere Formulierungen derselben Frage (Antworten bleiben gleich)

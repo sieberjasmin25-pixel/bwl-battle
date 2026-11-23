@@ -79,6 +79,10 @@ canvas#conf{position:fixed;inset:0;pointer-events:none;z-index:60}
 .trow .ck{flex:0 0 auto;font-size:1.25rem;line-height:1}
 .linkbtn{background:none;border:none;color:var(--brand);font-weight:700;min-height:36px;padding:4px 6px}
 .startbar{position:sticky;bottom:0;background:var(--bg);padding:10px 0 8px;margin-top:10px;border-top:1px solid var(--line)}
+.opt.miss{border:2px dashed var(--ok)}
+.opt .ck{flex:0 0 26px;font-size:1.25rem;line-height:1;text-align:center}
+.opt .num{flex:0 0 28px;height:28px;border-radius:50%;background:var(--brand);color:var(--onbrand);display:grid;place-items:center;font-weight:800;font-size:.9rem}
+.opt .num.empty{background:var(--line)}
 .trow{display:flex;gap:8px;align-items:stretch} .trow>button:first-child{flex:1;min-width:0} .trow .eye{flex:0 0 auto;padding:8px 10px;font-size:.85rem;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px}
 .sadpop{position:fixed;left:50%;top:38%;font-size:5.5rem;line-height:1;transform:translate(-50%,-50%) scale(.4);opacity:0;pointer-events:none;z-index:61;animation:sadpop 1.4s ease-out forwards}
 @keyframes sadpop{18%{opacity:1;transform:translate(-50%,-50%) scale(1.15)}32%{transform:translate(-50%,-50%) scale(1)}75%{opacity:1}100%{opacity:0;transform:translate(-50%,-25%) scale(1)}}

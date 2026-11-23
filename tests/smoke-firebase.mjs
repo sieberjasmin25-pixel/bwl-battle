@@ -24,7 +24,7 @@ async function user(name,extra=""){
 }
 async function answer(pg){
   await pg.waitForFunction(()=>cur&&!cur.answered&&!document.getElementById("vQuiz").classList.contains("hidden"),null,{timeout:20000});
-  await pg.evaluate(()=>{ const q=cur.q;
+  await pg.evaluate(()=>{ const q=cur.q; if(q.type==="multi"||q.type==="order"){ __fill(true); return; }
     if(q.type==="mc"){ document.querySelectorAll("#qBody .opt")[cur.shuffled.findIndex(o=>o.i===q.a)].click(); }
     else if(q.type==="match"){ document.querySelectorAll("#qBody .mitem").forEach((m,k)=>m.querySelectorAll(".mchoices button")[cur.shuffled[k].c].click()); }
     else { const i=document.getElementById("numIn"); i.value=String(q.a).replace(".",","); i.dispatchEvent(new Event("input")); } });

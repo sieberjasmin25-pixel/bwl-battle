@@ -317,6 +317,59 @@ const Q = [
  e:"Wer zu wenig schreibt, verliert Punkte; wer zu viel schreibt, verliert Zeit. Tipp: Beispiele aus Ernährungs-Apps zeigen, dass man die Begriffe anwenden kann."}
 ];
 
+/* ===== Mehrfachauswahl, Reihenfolge & weitere Zuordnung ===== */
+Q.push(
+{id:"mu1",t:1,type:"multi",q:"Welche gehören zu den sieben Interaktionsprinzipien nach ISO 9241-110?",
+ o:["Aufgabenangemessenheit","Selbstbeschreibungsfähigkeit","Erwartungskonformität","Benutzerbindung","Sichtbarkeit des Systemstatus","Konsistenz und Standards","Ästhetisches und minimalistisches Design","Nähe"],c:[0,1,2,3],
+ e:"Die anderen sind Heuristiken nach Nielsen bzw. ein Gestaltgesetz – typische Verwechsler! Alle sieben: Aufgabenangemessenheit, Selbstbeschreibungsfähigkeit, Erwartungskonformität, Erlernbarkeit, Steuerbarkeit, Robustheit gegen Benutzungsfehler, Benutzerbindung."},
+{id:"mu2",t:11,type:"multi",q:"Welche sind Heuristiken nach Nielsen?",
+ o:["Sichtbarkeit des Systemstatus","Benutzerkontrolle und Freiheit","Fehlervermeidung","Wiedererkennen statt Erinnern","Steuerbarkeit","Erwartungskonformität","Chunking","Figur und Grund"],c:[0,1,2,3],
+ e:"Steuerbarkeit und Erwartungskonformität sind Interaktionsprinzipien, Chunking kommt vom Gedächtnis, Figur und Grund ist ein Gestaltgesetz."},
+{id:"mu3",t:2,type:"multi",q:"Welche Merkmale sind laut Wiederholungsfolie präattentiv?",
+ o:["Farbe","Größe","Form","Bewegung","Schriftart des Fließtexts","Wortlänge","Inhalt eines Satzes"],c:[0,1,2,3],
+ e:"Präattentiv = fällt sofort auf, ohne bewusste Suche. Das Lernbuch nennt zusätzlich die Ausrichtung."},
+{id:"mu4",t:3,type:"multi",q:"Welche sind Gestaltgesetze aus der Vorlesung?",
+ o:["Nähe","Ähnlichkeit","Gemeinsame Region","Geschlossenheit","Gute Fortsetzung","Figur und Grund","Chunking","Fitts’ Gesetz"],c:[0,1,2,3,4,5],
+ e:"Eselsbrücke: „Nur Ärzte Rechnen Gerne Frische Fette.“ Chunking (Gedächtnis) und Fitts (Handeln) gehören zu anderen Themen."},
+{id:"mu5",t:9,type:"multi",q:"Welche sind typische Persona-Fallen?",
+ o:["Klischee statt Daten","Wunschkunde statt Zielgruppe","Zu viele Personas","Persona im Schrank","Szenario mit Störung","Auf Interviews gestützte Annahmen"],c:[0,1,2,3],
+ e:"„Keine Wunder zum Schrank“. Ein Szenario mit Störung und datengestützte Annahmen sind gerade richtig."},
+{id:"mu6",t:0,type:"multi",q:"Was gehört in die Usability-Definition nach DIN EN ISO 9241-11?",
+ o:["bestimmte Nutzende","bestimmter Nutzungskontext","bestimmte Ziele","effektiv","effizient","zufriedenstellend","schön gestaltet","schnell programmiert"],c:[0,1,2,3,4,5],
+ e:"„3 × bestimmt + E-E-Z“ – den Nutzungskontext vergessen viele!"},
+{id:"mu7",t:12,type:"multi",q:"Was misst man im Usability-Test, um Usability messbar zu machen?",
+ o:["Erfolgsquote (gelöst / mit Hilfe / nicht gelöst)","Zeit und Anzahl der Schritte","Zufriedenheit per Fragebogen wie SUS","Anzahl der Entwickler:innen","Preis der App"],c:[0,1,2],
+ e:"Effektivität = Erfolgsquote · Effizienz = Zeit und Schritte · Zufriedenheit = Fragebogen."},
+{id:"or1",t:9,type:"order",q:"Bring die Schritte des Kreislaufs nach DIN EN ISO 9241-210 in die richtige Reihenfolge.",
+ items:["Nutzungskontext verstehen","Anforderungen festlegen","Lösungen gestalten","Aus Nutzersicht bewerten"],
+ e:"„Vier Freunde gehen baden“ – und danach wieder zurück in die Gestaltung, bis alles passt (Pluspunkt in der Klausur!)."},
+{id:"or2",t:8,type:"order",q:"Wie geht gute Gestaltung mit Fehlern um? Bring die Stufen in die richtige Reihenfolge (das Beste zuerst).",
+ items:["Fehler verhindern (z. B. Plausibilitätsprüfung)","Rückgängig machen ermöglichen","Verständlich melden"],
+ e:"Am besten passiert der Fehler gar nicht erst. Eine Meldung verhindert nichts, sie geht nur damit um."},
+{id:"or3",t:7,type:"order",q:"Handlungszyklus nach Norman: Bring die Stufen nach dem Ziel in die richtige Reihenfolge.",
+ items:["Planen","Handlung auswählen","Ausführen","Wahrnehmen, was die App zeigt","Verstehen","Mit dem Ziel vergleichen"],
+ e:"Hinweg (planen, auswählen, ausführen) – hier sitzt die Kluft der Ausführung. Rückweg (wahrnehmen, verstehen, vergleichen) – hier sitzt die Kluft der Bewertung."},
+{id:"or4",t:5,type:"order",q:"Mehrspeichermodell: In welcher Reihenfolge wandern Informationen?",
+ items:["Sensorisches Gedächtnis (Bruchteile von Sekunden)","Arbeitsgedächtnis (ca. 4 Einheiten)","Langzeitgedächtnis (dauerhaft)"],
+ e:"„S-A-Lat“. Informationen wandern nur weiter, wenn wir darauf achten."},
+{id:"or5",t:12,type:"order",q:"SUS-Wert berechnen: Bring die Schritte in die richtige Reihenfolge.",
+ items:["Ungerade Aussagen: Antwort − 1","Gerade Aussagen: 5 − Antwort","Alle Punkte addieren","Summe × 2,5","Mit dem Durchschnitt von etwa 68 vergleichen"],
+ e:"„Ungerade minus eins, fünf minus gerade, mal zweieinhalb.“ Kein Prozentwert!"},
+{id:"or6",t:11,type:"order",q:"Ablauf einer heuristischen Evaluation: Was kommt wann?",
+ items:["Jede Fachperson prüft allein, Screen für Screen","Probleme notieren: wo, welche Heuristik, wie schwer","Im Team zusammenführen und doppelte Funde bündeln"],
+ e:"Erst einzeln, damit sich niemand beeinflusst – dann zusammenführen."},
+{id:"or7",t:10,type:"order",q:"Welche Prototyp-Stufe kommt im Projekt wann? (früh → spät)",
+ items:["Low Fidelity – Papierskizzen","Mid Fidelity – Wireframes in Graustufen","High Fidelity – klickbares Design"],
+ e:"Je früher im Projekt, desto gröber: Papier prüft Idee und Ablauf, Wireframes Aufbau und Navigation, High Fidelity Details und Wirkung."},
+{id:"or8",t:10,type:"order",q:"Bildschirmfluss „Mahlzeit per Foto erfassen“: Bring die Bildschirme in die richtige Reihenfolge.",
+ items:["Start: „Mahlzeit fotografieren“","Foto vom Teller aufnehmen","Portion bestätigen oder korrigieren","Ergebnis: „Passt zu deinem Plan“"],
+ e:"Jeder Screen beantwortet: „Was kann ich hier tun?“ und „Hat mein letzter Schritt geklappt?“"},
+{id:"he9",t:11,type:"match",q:"Welche Heuristik nach Nielsen zeigt das Beispiel? (Teil 2)",
+ cats:["Sichtbarkeit des Systemstatus","Wiedererkennen statt Erinnern","Ästhetisches und minimalistisches Design","Hilfe und Dokumentation"],
+ items:[["„Mittagessen gespeichert“ erscheint nach dem Speichern",0],["„Zuletzt gegessen“ und Favoriten",1],["Eine Übersicht statt zwölf Diagrammen",2],["Erklärung, was „Netto-Kalorien“ bedeutet",3]],
+ e:"Die 10 als Geschichte: Ich sehe, was passiert (1) … ich muss nichts merken (6) … es ist aufgeräumt (8) … und es gibt Hilfe (10)."}
+);
+
 /* ===== Varianten =====
    gen: Rechenaufgabe mit neuen Zahlen (r = Zufallsfunktion, im Duell/Live für alle gleich)
    qv:  andere Formulierungen derselben Frage (Antworten bleiben gleich)

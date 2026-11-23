@@ -15,7 +15,8 @@ const pl = (n,one,many) => fmt(n)+" "+(Math.round(Number(n)||0)===1?one:many);
 const fmt = n => Math.round(Number(n)||0).toLocaleString("de-DE");
 const LS = {get(k){try{return localStorage.getItem(k)}catch(e){return null}},set(k,v){try{localStorage.setItem(k,v)}catch(e){}}};
 const shuffle = (a,rnd=Math.random) => {a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(rnd()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a};
-const TIME = {mc:30, match:75, num:60};
+const TIME = {mc:30, match:75, num:60, multi:45, order:60};
+const TYPE_LABEL = {mc:"Multiple Choice", match:"Zuordnung", num:"Rechnen", multi:"Mehrfachauswahl", order:"Reihenfolge"};
 const ROUND = 15;
 const SHAPES = ["▲","◆","●","■"], SHCOL = ["var(--k0)","var(--k1)","var(--k2)","var(--k3)"];
 const tkey = i => "t"+i;
@@ -284,11 +285,13 @@ function renderCatalog(){
   $("catTitle").textContent="👁 "+TOPICS[t];
   $("catSub").textContent=`${qs.length} Fragen · Tippe auf eine Frage, um Lösung und Erklärung zu sehen.`;
   $("catOpenAll").textContent=catAllOpen?"Alle Lösungen zuklappen":"Alle Lösungen zeigen";
-  const typ=q=>q.type==="mc"?"Auswahl":q.type==="match"?"Zuordnung":"Rechnen";
+  const typ=q=>({mc:"Auswahl",match:"Zuordnung",num:"Rechnen",multi:"Mehrfach",order:"Reihenfolge"})[q.type]||"";
   $("catList").innerHTML=qs.map((q,i)=>{
     const st=(progress.wrong[q.id]||0)>0?" · ❌ zuletzt falsch":progress.seen[q.id]?" · ✓ gesehen":"";
     let ans="";
     if(q.type==="mc") ans=`<ul>${q.o.map((o,k)=>`<li class="${k===q.a?"ok":""}">${k===q.a?"✅ ":""}${esc(o)}</li>`).join("")}</ul>`;
+    else if(q.type==="multi") ans=`<p class="small" style="margin:4px 0">Alle richtigen:</p><ul>${q.o.map((o,k)=>`<li class="${q.c.includes(k)?"ok":""}">${q.c.includes(k)?"✅ ":"✗ "}${esc(o)}</li>`).join("")}</ul>`;
+    else if(q.type==="order") ans=`<ol>${q.items.map(t=>`<li>${esc(t)}</li>`).join("")}</ol>`;
     else if(q.type==="match") ans=`<ul>${q.items.map(it=>`<li>${esc(it[0])} → <b>${esc(q.cats[it[1]])}</b></li>`).join("")}</ul>`;
     else ans=`<p style="margin:4px 0"><b>Lösung: ${esc(numText(q))}</b></p>`;
     return `<details class="catq" ${catAllOpen?"open":""}><summary><span class="tg">${i+1} · ${typ(q)}</span><b>${esc(q.q)}</b></summary><div class="ans">${ans}<p class="small muted" style="margin:6px 0 0">${esc(q.e)}</p>${altHtml(q)}${q.gen?`<p class="small" style="margin:6px 0 0">🔢 Im Spiel kommt diese Aufgabe jedes Mal mit neuen Zahlen.</p>`:""}${q.qv?`<p class="small" style="margin:6px 0 0">🔀 Wird auch so gefragt: ${q.qv.map(esc).join(" · ")}</p>`:""}${st?`<p class="small" style="margin:6px 0 0">${st.slice(3)}</p>`:""}</div></details>`;
@@ -305,7 +308,7 @@ function renderQuestion(q, opts){
   cur={q,sel:null,matchSel:null,answered:false,onDone:opts.onDone,deadline:opts.deadline,limit:opts.limit||TIME[q.type],paused:false};
   show("vQuiz");
   $("qCount").textContent=opts.label; $("qTopic").textContent=TOPICS[q.t];
-  $("qType").textContent = q.type==="mc"?"Multiple Choice":q.type==="match"?"Zuordnung":"Rechnen";
+  $("qType").textContent = TYPE_LABEL[q.type]||"";
   $("qText").textContent=q.q; $("qFb").innerHTML=""; $("qScore").textContent=fmt(opts.score||0);
   $("actBtn").classList.remove("hidden"); $("liveWait").classList.add("hidden"); $("hostReveal").classList.add("hidden");
   $("pauseBtn").classList.toggle("hidden",!opts.canPause);
@@ -316,6 +319,23 @@ function renderQuestion(q, opts){
     cur.shuffled.forEach((o,k)=>{const b=document.createElement("button");b.className="opt";
       b.innerHTML=`<span class="sh" style="background:${SHCOL[k]}">${SHAPES[k]}</span><span></span>`; b.lastChild.textContent=o.t;
       b.onclick=()=>{if(cur.answered)return;cur.sel=k;[...box.children].forEach((c,j)=>c.classList.toggle("sel",j===k));upd();};box.appendChild(b);});
+    body.appendChild(box);
+  } else if(q.type==="multi"){
+    cur.shuffled=shuffle(q.o.map((t,i)=>({t,i}))); cur.msel=new Set();
+    const hint=document.createElement("p"); hint.className="muted small"; hint.style.margin="0 0 8px"; hint.textContent="☑️ Mehrere Antworten sind richtig – wähle alle passenden aus."; body.appendChild(hint);
+    const box=document.createElement("div"); box.className="opts"; box.id="multiBox";
+    cur.shuffled.forEach((o,k)=>{ const b=document.createElement("button"); b.className="opt"; b.setAttribute("role","checkbox"); b.setAttribute("aria-checked","false");
+      b.innerHTML=`<span class="ck">☐</span><span></span>`; b.lastChild.textContent=o.t;
+      b.onclick=()=>{ if(cur.answered) return; if(cur.msel.has(k)) cur.msel.delete(k); else cur.msel.add(k); drawMulti(); upd(); }; box.appendChild(b); });
+    body.appendChild(box);
+  } else if(q.type==="order"){
+    do{ cur.shuffled=shuffle(q.items.map((t,i)=>({t,i}))); } while(q.items.length>1 && cur.shuffled.every((x,k)=>x.i===k));
+    cur.seq=[];
+    const hint=document.createElement("p"); hint.className="muted small"; hint.style.margin="0 0 8px"; hint.textContent="🔢 Tippe die Schritte in der richtigen Reihenfolge an. Nochmal tippen nimmt ihn (und alle danach) zurück."; body.appendChild(hint);
+    const box=document.createElement("div"); box.className="opts"; box.id="orderBox";
+    cur.shuffled.forEach((o,k)=>{ const b=document.createElement("button"); b.className="opt";
+      b.innerHTML=`<span class="num empty"></span><span></span>`; b.lastChild.textContent=o.t;
+      b.onclick=()=>{ if(cur.answered) return; const pos=cur.seq.indexOf(k); if(pos>=0) cur.seq=cur.seq.slice(0,pos); else cur.seq.push(k); drawOrder(); upd(); }; box.appendChild(b); });
     body.appendChild(box);
   } else if(q.type==="match"){
     cur.shuffled = shuffle(q.items.map((it,i)=>({t:it[0],c:it[1],i}))); cur.matchSel=cur.shuffled.map(()=>null);
@@ -336,13 +356,20 @@ function renderQuestion(q, opts){
   $("actBtn").textContent="Antwort abgeben"; upd();
   tick(); cur.timerId=setInterval(tick,200);
 }
+function drawMulti(){ [...$("multiBox").children].forEach((b,k)=>{ const on=cur.msel.has(k); b.classList.toggle("sel",on); b.firstChild.textContent=on?"☑":"☐"; b.setAttribute("aria-checked",on); }); }
+function drawOrder(){ [...$("orderBox").children].forEach((b,k)=>{ const p=cur.seq.indexOf(k); b.classList.toggle("sel",p>=0); b.firstChild.textContent=p>=0?p+1:""; b.firstChild.classList.toggle("empty",p<0); }); }
+// nur für automatische Tests: aktuelle Frage richtig (good) oder falsch ausfüllen
+window.__fill=good=>{ const q=cur.q;
+  if(q.type==="multi"){ cur.msel=new Set(); cur.shuffled.forEach((o,k)=>{ const c=q.c.includes(o.i); if(good?c:!c) cur.msel.add(k); }); drawMulti(); }
+  else if(q.type==="order"){ const idx=cur.shuffled.map((o,k)=>({o,k})).sort((a,b)=>a.o.i-b.o.i).map(x=>x.k); cur.seq=good?idx:idx.slice().reverse(); drawOrder(); }
+  upd(); };
 function parseNum(s){s=String(s).trim().replace(/\s|€|%/g,""); if(!s)return NaN;
   if(/,/.test(s)) s=s.replace(/\./g,"").replace(",","."); else if(/^\d{1,3}(\.\d{3})+$/.test(s)) s=s.replace(/\./g,""); return Number(s);}
 function upd(){
   if(!cur) return;
   if(cur.answered){ $("actBtn").disabled=!cur.next; return; }
   const q=cur.q; let ok=false;
-  if(q.type==="mc") ok=cur.sel!==null; else if(q.type==="match") ok=cur.matchSel.every(v=>v!==null); else ok=!isNaN(parseNum(($("numIn")||{}).value||""));
+  if(q.type==="mc") ok=cur.sel!==null; else if(q.type==="multi") ok=cur.msel.size>0; else if(q.type==="order") ok=cur.seq.length===q.items.length; else if(q.type==="match") ok=cur.matchSel.every(v=>v!==null); else ok=!isNaN(parseNum(($("numIn")||{}).value||""));
   $("actBtn").disabled=!ok;
 }
 function timeLeft(){ if(!cur) return 0; if(cur.paused) return cur.pausedLeft/1000; return Math.max(0,(cur.deadline-Date.now())/1000); }
@@ -354,6 +381,8 @@ function tick(){
 function score(){
   const q=cur.q; let frac=0, choice=null;
   if(q.type==="mc"){ if(cur.sel!==null){choice=cur.shuffled[cur.sel].i; frac=choice===q.a?1:0;} }
+  else if(q.type==="multi"){ let hits=0,bad=0; cur.msel.forEach(k=>{ if(q.c.includes(cur.shuffled[k].i)) hits++; else bad++; }); frac=(hits===q.c.length&&!bad)?1:Math.max(0,(hits-bad)/q.c.length); }
+  else if(q.type==="order"){ const n=cur.seq.filter((k,p)=>cur.shuffled[k].i===p).length; frac=n/q.items.length; }
   else if(q.type==="match"){ let n=0; cur.shuffled.forEach((it,k)=>{if(cur.matchSel[k]===it.c)n++;}); frac=n/q.items.length; }
   else { const v=parseNum(($("numIn")||{}).value||""); const tol=q.tol?Math.abs(q.a)*q.tol:0; frac=(!isNaN(v)&&Math.abs(v-q.a)<=Math.max(tol,1e-9))?1:0; }
   const speed=Math.max(0,Math.min(1,timeLeft()/cur.limit));
@@ -363,6 +392,8 @@ function score(){
 function givenText(){
   const q=cur.q;
   if(q.type==="mc") return cur.sel!==null?cur.shuffled[cur.sel].t:"keine Antwort";
+  if(q.type==="multi") return [...cur.msel].map(k=>cur.shuffled[k].t).join(" · ")||"keine Antwort";
+  if(q.type==="order") return cur.seq.map((k,p)=>(p+1)+". "+cur.shuffled[k].t).join(" → ")||"keine Antwort";
   if(q.type==="match") return cur.shuffled.map((it,k)=>it.t+" → "+(cur.matchSel[k]!=null?q.cats[cur.matchSel[k]]:"–")).join(" · ");
   const v=(($("numIn")||{}).value||"").trim(); return v?v+(q.unit?" "+q.unit:""):"keine Antwort";
 }
@@ -374,6 +405,13 @@ function numText(q){ return (q.a%1?q.a.toLocaleString("de-DE"):fmt(q.a))+(q.unit
 function showSolution(res,timeout){
   const q=cur.q, box=$("qBody").firstChild; let detail="";
   if(q.type==="mc"){ cur.shuffled.forEach((o,k)=>{if(o.i===q.a)box.children[k].classList.add("right");else if(k===cur.sel)box.children[k].classList.add("wrong");}); detail="Richtig: "+q.o[q.a]; }
+  else if(q.type==="multi"){ const mb=$("multiBox"); let n=0;
+      cur.shuffled.forEach((o,k)=>{ const c=q.c.includes(o.i), s=cur.msel.has(k), b=mb.children[k]; if(c&&s){b.classList.add("right");n++;} else if(s) b.classList.add("wrong"); else if(c) b.classList.add("miss"); });
+      detail=`${n} von ${q.c.length} richtigen gefunden · gestrichelt = übersehen. Richtig: ${q.c.map(i=>q.o[i]).join(" · ")}`; }
+  else if(q.type==="order"){ const ob=$("orderBox");
+      cur.shuffled.forEach((o,k)=>{ const p=cur.seq.indexOf(k), g=p===o.i, b=ob.children[k]; b.classList.add(g?"right":"wrong");
+        if(!g){ const s=document.createElement("span"); s.className="small"; s.style.marginLeft="auto"; s.innerHTML="→ <b>Platz "+(o.i+1)+"</b>"; b.appendChild(s); } });
+      detail="Richtige Reihenfolge: "+q.items.map((t,i)=>(i+1)+". "+t).join(" → "); }
   else if(q.type==="match"){ let n=0; cur.shuffled.forEach((it,k)=>{const g=cur.matchSel[k]===it.c;if(g)n++;box.children[k].classList.add(g?"right":"wrong");
       if(!g){const s=document.createElement("p");s.className="small";s.style.margin="6px 0 0";s.innerHTML="→ richtig: <b>"+esc(q.cats[it.c])+"</b>";box.children[k].appendChild(s);}});
       detail=`${n} von ${q.items.length} richtig zugeordnet`; }
@@ -488,7 +526,8 @@ function topicBar(label,p,extra){
   const cls=p>=75?"":p>=50?"mid":"low";
   return `<div class="topicrow"><div class="row"><span>${esc(label)}</span><b>${p==null?"–":p+" %"}</b></div><div class="bar ${cls}"><div style="width:${p||0}%"></div></div>${extra?`<div class="muted small">${extra}</div>`:""}</div>`;
 }
-function solText(q){ return q.type==="mc"? q.o[q.a] : q.type==="num"? numText(q) : q.items.map(it=>it[0]+" → "+q.cats[it[1]]).join(" · "); }
+function solText(q){ if(q.type==="multi") return q.c.map(i=>q.o[i]).join(" · "); if(q.type==="order") return q.items.map((t,i)=>(i+1)+". "+t).join(" → ");
+  return q.type==="mc"? q.o[q.a] : q.type==="num"? numText(q) : q.items.map(it=>it[0]+" → "+q.cats[it[1]]).join(" · "); }
 function renderReview(res,el){
   const wrong=res.filter(r=>r.frac<1);
   el.innerHTML= wrong.length? wrong.map(r=>{const q=resQ(r);
