@@ -77,7 +77,7 @@ const BE = (()=>{
 let me=null; // eigene (anonyme) ID
 
 /* ================= VIEWS + ZURÜCK-BUTTON ================= */
-const VIEWS = ["vHome","vTopics","vRank","vProfile","vDuels","vDuelNew","vDuel","vDuelPick","vLive","vLobby","vQuiz","vReveal","vPodium","vEnd","vHot","vPass"];
+const VIEWS = ["vHome","vTopics","vCatalog","vRank","vProfile","vDuels","vDuelNew","vDuel","vDuelPick","vLive","vLobby","vQuiz","vReveal","vPodium","vEnd","vHot","vPass"];
 function show(v){VIEWS.forEach(x=>$(x).classList.toggle("hidden",x!==v));window.scrollTo(0,0);}
 function go(v,hash){show(v); if(hash!==undefined && location.hash.replace("#","")!==hash){ location.hash=hash; }}
 const isShown = v => !$(v).classList.contains("hidden");
@@ -104,7 +104,7 @@ function ask(title,text,buttons){
   });
 }
 let lastHash=location.hash.replace("#",""), navBypass=false, asking=false;
-const HANDLED = new Set(["","start","themen","rangliste","duelle","duell","live","profil"]);
+const HANDLED = new Set(["","start","themen","katalog","rangliste","duelle","duell","live","profil"]);
 window.addEventListener("hashchange",e=>{
   const h=location.hash.replace("#","");
   if(navBypass){ navBypass=false; lastHash=h; return; }
@@ -147,6 +147,7 @@ window.addEventListener("hashchange",()=>{
   const h=location.hash.replace("#","");
   if(h===""||h==="start"){ leaveAll(); show("vHome"); renderHome(); }
   else if(h==="themen"){ stopQuiz(); show("vTopics"); renderTopics(); }
+  else if(h==="katalog" && catTopic!=null){ show("vCatalog"); renderCatalog(); }
   else if(h==="rangliste"){ show("vRank"); renderRank(); }
   else if(h==="duelle"){ stopQuiz(); duel.openId=null; duel.playing=null; show("vDuels"); renderDuelList(); }
   else if(h==="duell" && duel.openId){ stopQuiz(); duel.playing=null; show("vDuel"); renderDuel(); }
@@ -184,8 +185,10 @@ function selectFach(kurz){
 function markSeen(id,ok){ progress.seen[id]=(progress.seen[id]||0)+1; if(!ok) progress.wrong[id]=(progress.wrong[id]||0)+1; else if(progress.wrong[id]) progress.wrong[id]=Math.max(0,progress.wrong[id]-1); LS.set(P+"progress",JSON.stringify(progress)); }
 function rankQ(q){ const s=progress.seen[q.id]||0, w=progress.wrong[q.id]||0; return s*10 - w*4 + Math.random()*3; }
 const MIN_CALC = 3;   // ab so vielen Rechenaufgaben gibt es den Modus „Nur Rechnen“
-function topicLabel(topic,f){ f=f||FACH; return topic==="mix"?"🎯 Gemischt":topic==="calc"?"🧮 Nur Rechnen":"📚 "+(f.topics[+topic]||""); }
+function topicLabel(topic,f){ f=f||FACH; return topic==="mix"?"🎯 Gemischt":topic==="calc"?"🧮 Nur Rechnen":topic==="wrong"?"❌ Falsche nochmal":"📚 "+(f.topics[+topic]||""); }
+const wrongQs = () => Q.filter(q=>(progress.wrong[q.id]||0)>0);
 function pickRound(topic){
+  if(topic==="wrong") return shuffle(wrongQs().map(q=>q.id)).slice(0,ROUND);
   if(topic==="calc") return shuffle(Q.filter(q=>q.type==="num").sort((a,b)=>rankQ(a)-rankQ(b)).slice(0,ROUND).map(q=>q.id));
   if(topic!=="mix"){ const t=+topic; return shuffle(Q.filter(q=>q.t===t).sort((a,b)=>rankQ(a)-rankQ(b)).slice(0,ROUND).map(q=>q.id)); }
   const chosen=[]; const used=new Set();
@@ -209,11 +212,16 @@ function renderHome(){
   const seen=Q.filter(q=>progress.seen[q.id]).length;
   $("coverage").textContent=`Fortschritt auf diesem Handy: ${seen} von ${Q.length} Fragen gesehen`+(seen===Q.length?" – alles abgedeckt! 💪":"");
   $("covBar").style.width=(seen/Q.length*100)+"%";
+  const nw=wrongQs().length;
+  $("goWrong").classList.toggle("hidden",!nw);
+  $("goWrongTxt").textContent=`${nw} ${nw===1?"Frage":"Fragen"}, die du zuletzt falsch hattest – richtig beantwortet fliegen sie raus`;
   updName(); renderMini(); renderDuelBadge();
 }
 function setConn(state,text){ const c=$("conn"); c.className="status "+state; c.lastChild.textContent=text; }
 $("goMix").onclick=()=>startSolo("mix");
 $("goTopics").onclick=()=>{go("vTopics","themen");renderTopics();};
+$("goWrong").onclick=()=>startSolo("wrong");
+$("endWrong").onclick=()=>startSolo("wrong");
 $("goCalc").onclick=()=>startSolo("calc");
 $("goRank").onclick=()=>{go("vRank","rangliste");renderRank();};
 $("goMe").onclick=()=>openProfile(me);
@@ -223,9 +231,31 @@ function renderTopics(){
   const r=myRank()||{};
   $("topicList").innerHTML=TOPICS.map((t,i)=>{const qs=Q.filter(q=>q.t===i), s=qs.filter(q=>progress.seen[q.id]).length;
     const best=((r.topics||{})[tkey(i)]||{}).best;
-    return `<button data-t="${i}"><span><b>${esc(t)}</b><br><span class="muted small">${qs.length} Fragen · ${s} gesehen${best!=null?` · Bestwert ${fmt(best)} P`:""}</span></span><span>›</span></button>`}).join("");
-  $("topicList").querySelectorAll("button").forEach(b=>b.onclick=()=>startSolo(b.dataset.t));
+    return `<div class="trow"><button data-t="${i}"><span><b>${esc(t)}</b><br><span class="muted small">${qs.length} Fragen · ${s} gesehen${best!=null?` · Bestwert ${fmt(best)} P`:""}</span></span><span>›</span></button><button class="eye" data-cat="${i}" aria-label="Alle Fragen zu ${esc(t)} ansehen"><span style="font-size:1.2rem">👁</span><span class="small">Fragen</span></button></div>`}).join("");
+  $("topicList").querySelectorAll("button[data-t]").forEach(b=>b.onclick=()=>startSolo(b.dataset.t));
+  $("topicList").querySelectorAll("button[data-cat]").forEach(b=>b.onclick=()=>openCatalog(+b.dataset.cat));
 }
+/* ---------- Alle Fragen eines Themas ansehen ---------- */
+let catTopic=null, catAllOpen=false;
+function openCatalog(t){ catTopic=t; catAllOpen=false; go("vCatalog","katalog"); renderCatalog(); }
+function renderCatalog(){
+  const t=catTopic, qs=Q.filter(q=>q.t===t);
+  $("catTitle").textContent="👁 "+TOPICS[t];
+  $("catSub").textContent=`${qs.length} Fragen · Tippe auf eine Frage, um Lösung und Erklärung zu sehen.`;
+  $("catOpenAll").textContent=catAllOpen?"Alle Lösungen zuklappen":"Alle Lösungen zeigen";
+  const typ=q=>q.type==="mc"?"Auswahl":q.type==="match"?"Zuordnung":"Rechnen";
+  $("catList").innerHTML=qs.map((q,i)=>{
+    const st=(progress.wrong[q.id]||0)>0?" · ❌ zuletzt falsch":progress.seen[q.id]?" · ✓ gesehen":"";
+    let ans="";
+    if(q.type==="mc") ans=`<ul>${q.o.map((o,k)=>`<li class="${k===q.a?"ok":""}">${k===q.a?"✅ ":""}${esc(o)}</li>`).join("")}</ul>`;
+    else if(q.type==="match") ans=`<ul>${q.items.map(it=>`<li>${esc(it[0])} → <b>${esc(q.cats[it[1]])}</b></li>`).join("")}</ul>`;
+    else ans=`<p style="margin:4px 0"><b>Lösung: ${esc(numText(q))}</b></p>`;
+    return `<details class="catq" ${catAllOpen?"open":""}><summary><span class="tg">${i+1} · ${typ(q)}</span><b>${esc(q.q)}</b></summary><div class="ans">${ans}<p class="small muted" style="margin:6px 0 0">${esc(q.e)}</p>${st?`<p class="small" style="margin:6px 0 0">${st.slice(3)}</p>`:""}</div></details>`;
+  }).join("");
+}
+$("catBack").onclick=()=>{ location.hash="themen"; };
+$("catPlay").onclick=()=>startSolo(String(catTopic));
+$("catOpenAll").onclick=()=>{ catAllOpen=!catAllOpen; renderCatalog(); };
 
 /* ================= FRAGEN-RENDERER (gemeinsam) ================= */
 let cur=null;
@@ -289,6 +319,16 @@ function score(){
   const pts=Math.round(frac*100+(frac===1?50*speed:0));
   return {frac:Math.round(frac*1000)/1000,pts,choice};
 }
+function givenText(){
+  const q=cur.q;
+  if(q.type==="mc") return cur.sel!==null?cur.shuffled[cur.sel].t:"keine Antwort";
+  if(q.type==="match") return cur.shuffled.map((it,k)=>it.t+" → "+(cur.matchSel[k]!=null?q.cats[cur.matchSel[k]]:"–")).join(" · ");
+  const v=(($("numIn")||{}).value||"").trim(); return v?v+(q.unit?" "+q.unit:""):"keine Antwort";
+}
+function sadPop(emo){
+  const el=document.createElement("div"); el.className="sadpop"; el.textContent=emo; el.setAttribute("aria-hidden","true");
+  document.body.appendChild(el); setTimeout(()=>el.remove(),1500);
+}
 function numText(q){ return (q.a%1?q.a.toLocaleString("de-DE"):fmt(q.a))+(q.unit?" "+q.unit:""); }
 function showSolution(res,timeout){
   const q=cur.q, box=$("qBody").firstChild; let detail="";
@@ -300,7 +340,7 @@ function showSolution(res,timeout){
   const good=res.frac===1, part=res.frac>0&&res.frac<1;
   const head= timeout&&res.frac===0?"⏰ Zeit abgelaufen":good?"✅ Richtig!":part?"🟡 Teilweise richtig":"❌ Leider falsch";
   $("qFb").innerHTML=`<div class="fb ${good?"ok":"bad"}"><b>${head} · +${res.pts} P</b><div class="small" style="margin-bottom:6px">${esc(detail)}</div>${esc(q.e)}</div>`;
-  if(good) confetti(60);
+  if(good) confetti(60); else sadPop(part?"😕":"😢");
 }
 function submit(timeout){
   if(!cur||cur.answered) return;
@@ -308,7 +348,7 @@ function submit(timeout){
   const res=score(); cur.onDone(res,timeout);
 }
 $("actBtn").onclick=()=>{ if(!cur) return; if(!cur.answered) submit(false); else if(cur.next){ const n=cur.next; cur.next=null; $("actBtn").disabled=true; n(); } };
-function stopQuiz(){ if(cur) clearInterval(cur.timerId); cur=null; solo=null; $("pauseOv").classList.add("hidden"); }
+function stopQuiz(){ if(cur) clearInterval(cur.timerId); cur=null; solo=null; $("pauseOv").classList.add("hidden"); $("prevBtn").classList.add("hidden"); $("peekOv").classList.add("hidden"); }
 
 /* ================= SOLO ================= */
 let solo=null, lastSoloTopic="mix";
@@ -319,8 +359,10 @@ function startSolo(topic){
 }
 function soloQ(){
   const q=QBY[solo.ids[solo.idx]];
+  $("prevBtn").classList.toggle("hidden",solo.idx<1);
   renderQuestion(q,{label:`Frage ${solo.idx+1}/${solo.ids.length}`,score:solo.score,canPause:true,deadline:Date.now()+TIME[q.type]*1000,
-    onDone:(res,timeout)=>{ solo.score+=res.pts; solo.res.push({id:q.id,frac:res.frac,pts:res.pts}); markSeen(q.id,res.frac===1);
+    onDone:(res,timeout)=>{ solo.score+=res.pts; solo.res.push({id:q.id,frac:res.frac,pts:res.pts,given:givenText(),timeout}); markSeen(q.id,res.frac===1);
+      if(solo.topic==="wrong" && res.frac===1){ progress.wrong[q.id]=0; LS.set(P+"progress",JSON.stringify(progress)); }
       $("qScore").textContent=fmt(solo.score); showSolution(res,timeout);
       $("actBtn").textContent= solo.idx+1<solo.ids.length?"Weiter →":"Auswertung anzeigen";
       cur.next=()=>{ solo.idx++; if(solo.idx<solo.ids.length) soloQ(); else soloEnd(); }; upd(); }});
@@ -336,9 +378,39 @@ $("resumeBtn").onclick=()=>{
   $("pauseOv").classList.add("hidden");
   if(cur&&cur.paused){ cur.deadline=Date.now()+cur.pausedLeft; cur.paused=false; }
 };
+/* ---------- Vorherige Fragen der Runde ansehen (nur lesen) ---------- */
+let peekIdx=0, peekPaused=false;
+function openPeek(){
+  if(!solo||!solo.res.length) return;
+  peekPaused=false;
+  if(cur && !cur.answered && !cur.paused){ cur.pausedLeft=Math.max(0,cur.deadline-Date.now()); cur.paused=true; peekPaused=true; }
+  peekIdx = cur&&cur.answered ? solo.res.length-2 : solo.res.length-1;
+  if(peekIdx<0) peekIdx=solo.res.length-1;
+  renderPeek(); $("peekOv").classList.remove("hidden"); $("peekOv").scrollTop=0;
+}
+function renderPeek(){
+  const r=solo.res[peekIdx], q=QBY[r.id];
+  $("peekTitle").textContent=`Frage ${peekIdx+1} von ${solo.ids.length}`; $("peekTopic").textContent=TOPICS[q.t];
+  $("peekQ").textContent=q.q;
+  const good=r.frac===1, part=r.frac>0&&r.frac<1;
+  $("peekMine").innerHTML=`<div class="fb ${good?"ok":"bad"}"><b>${good?"✅ Richtig":part?"🟡 Teilweise richtig":r.timeout&&!r.frac?"⏰ Zeit abgelaufen":"❌ Falsch"} · +${r.pts} P</b><div class="small">Deine Antwort: ${esc(r.given||"–")}</div></div>`;
+  $("peekSol").innerHTML=`<b style="color:var(--ok)">Lösung:</b> ${esc(solText(q))}`;
+  $("peekExp").textContent=q.e;
+  const maxIdx = solo.res.length-1;
+  $("peekPrev").disabled=peekIdx<=0; $("peekNext").disabled=peekIdx>=maxIdx;
+}
+$("prevBtn").onclick=openPeek;
+$("peekPrev").onclick=()=>{ if(peekIdx>0){ peekIdx--; renderPeek(); } };
+$("peekNext").onclick=()=>{ if(peekIdx<solo.res.length-1){ peekIdx++; renderPeek(); } };
+$("peekClose").onclick=()=>{
+  $("peekOv").classList.add("hidden");
+  if(peekPaused && cur && cur.paused){ cur.deadline=Date.now()+cur.pausedLeft; cur.paused=false; }
+  peekPaused=false;
+};
 async function soloEnd(){
   if(cur) clearInterval(cur.timerId);
-  const s=solo; s.done=true; go("vEnd","ergebnis");
+  const s=solo; s.done=true; $("prevBtn").classList.add("hidden"); go("vEnd","ergebnis");
+  $("endWrong").textContent=`❌ Falsche nochmal üben (${wrongQs().length})`; $("endWrong").classList.toggle("hidden",!wrongQs().length);
   const right=s.res.filter(r=>r.frac===1).length, max=s.ids.length*150;
   $("endMode").textContent = topicLabel(s.topic);
   $("endScore").textContent=fmt(s.score)+" P"; $("endDetail").textContent=`${right}/${s.ids.length} komplett richtig · max. ${fmt(max)} P`;
@@ -346,10 +418,12 @@ async function soloEnd(){
   $("copyState").textContent=""; $("saveState").textContent= BE.ok?"Wird in der Rangliste gespeichert …":"Offline – nicht in der Rangliste gespeichert.";
   let newBest=false;
   const ok=await saveRank(d=>{
-    const k=s.topic==="mix"?null:tkey(s.topic); const prev=(k?d.topics[k]:d.mix)||{};
-    newBest = s.score>(Number(prev.best)||0);
-    const entry={best:Math.max(Number(prev.best)||0,s.score),last:s.score,runs:(Number(prev.runs)||0)+1};
-    if(k) d.topics[k]=entry; else d.mix=entry;
+    if(s.topic!=="wrong"){   // „Falsche nochmal“ zählt nur in die Statistik, nicht als Bestwert
+      const k=s.topic==="mix"?null:tkey(s.topic); const prev=(k?d.topics[k]:d.mix)||{};
+      newBest = s.score>(Number(prev.best)||0);
+      const entry={best:Math.max(Number(prev.best)||0,s.score),last:s.score,runs:(Number(prev.runs)||0)+1};
+      if(k) d.topics[k]=entry; else d.mix=entry;
+    }
     addStats(d,s.res); d.games=(d.games||0)+1;
   });
   if(ok) $("saveState").textContent = newBest ? "🏆 Neuer Bestwert in der Rangliste!" : "✓ In der Rangliste gespeichert.";
@@ -888,7 +962,7 @@ function onGame(){
     if(live.phase!=="reveal"+g.idx){ live.phase="reveal"+g.idx; if(cur) clearInterval(cur.timerId); $("pauseOv").classList.add("hidden");
       if(!live.myAns[g.idx]){ live.myAns[g.idx]={f:0,p:0,c:null}; markSeen(g.qids[g.idx],false); BE.update(myPlayerPath(),{["ans."+g.idx]:live.myAns[g.idx]}).catch(()=>{}); }
       renderReveal(); show("vReveal");
-      if(live.myAns[g.idx].f===1) confetti(70);
+      if(live.myAns[g.idx].f===1) confetti(70); else sadPop(live.myAns[g.idx].f>0?"😕":"😢");
     }
     renderBoards(); return;
   }

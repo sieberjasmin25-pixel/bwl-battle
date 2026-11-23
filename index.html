@@ -70,6 +70,18 @@ tr.click{cursor:pointer}
 .dot{flex:0 0 10px;width:10px;height:10px;border-radius:50%;background:var(--accent);animation:pl 1s infinite alternate}@keyframes pl{to{opacity:.2}}
 .tlist{display:grid;gap:8px} .tlist button{text-align:left;display:flex;justify-content:space-between;gap:8px;align-items:center}
 canvas#conf{position:fixed;inset:0;pointer-events:none;z-index:60}
+.trow{display:flex;gap:8px;align-items:stretch} .trow>button:first-child{flex:1;min-width:0} .trow .eye{flex:0 0 auto;padding:8px 10px;font-size:.85rem;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px}
+.sadpop{position:fixed;left:50%;top:38%;font-size:5.5rem;line-height:1;transform:translate(-50%,-50%) scale(.4);opacity:0;pointer-events:none;z-index:61;animation:sadpop 1.4s ease-out forwards}
+@keyframes sadpop{18%{opacity:1;transform:translate(-50%,-50%) scale(1.15)}32%{transform:translate(-50%,-50%) scale(1)}75%{opacity:1}100%{opacity:0;transform:translate(-50%,-25%) scale(1)}}
+@media (prefers-reduced-motion:reduce){.sadpop{animation:none;opacity:1;transform:translate(-50%,-50%)}}
+.peekov{position:fixed;inset:0;background:var(--bg);z-index:52;overflow:auto}
+.catq{border-top:1px solid var(--line);padding:10px 0}
+.catq summary{cursor:pointer;list-style:none;display:flex;gap:8px;align-items:flex-start}
+.catq summary::-webkit-details-marker{display:none}
+.catq summary .tg{flex:0 0 auto;font-size:.75rem;color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:1px 8px;margin-top:2px}
+.catq summary b{flex:1}
+.catq .ans{margin:8px 0 0;padding-left:10px;border-left:3px solid var(--ok)}
+.catq ul{margin:4px 0;padding-left:18px} .catq li.ok{color:var(--ok);font-weight:700}
 .back{background:none;border:none;color:var(--brand);font-weight:700;padding:6px 0;min-height:40px}
 .status{display:flex;align-items:center;gap:6px;font-size:.82rem;color:var(--muted);margin-top:10px}
 .status i{width:9px;height:9px;border-radius:50%;background:var(--muted);display:inline-block}
@@ -117,6 +129,7 @@ canvas#conf{position:fixed;inset:0;pointer-events:none;z-index:60}
   <div class="btnrow">
     <button class="mode needname" id="goMix"><span class="ic">🎯</span><div><b>Solo · Gemischt</b><span>15 Fragen aus allen Themen, bevorzugt welche, die du noch nicht hattest</span></div></button>
     <button class="mode needname" id="goCalc"><span class="ic">🧮</span><div><b>Solo · Nur Rechnen</b><span id="goCalcTxt">Nur Rechenaufgaben aus allen Themen</span></div></button>
+    <button class="mode needname hidden" id="goWrong"><span class="ic">❌</span><div><b>Falsche nochmal üben</b><span id="goWrongTxt"></span></div></button>
     <button class="mode needname" id="goTopics"><span class="ic">📚</span><div><b>Solo · Nach Thema</b><span>Ein Thema gezielt üben, mit eigener Rangliste pro Thema</span></div></button>
     <button class="mode needname needonline" id="goDuels"><span class="ic">⚔️</span><div><b>Duelle</b><span>1 gegen 1 wie Quizduell: 6 Runden à 3 Fragen, jede:r spielt, wann sie/er Zeit hat</span></div><span class="badge hidden" id="duelBadge"></span></button>
     <button class="mode needname needonline" id="goLive"><span class="ic">🔴</span><div><b>Live-Battle</b><span>Viele Handys gleichzeitig: Raum erstellen oder beitreten, wie Kahoot</span></div></button>
@@ -139,8 +152,20 @@ canvas#conf{position:fixed;inset:0;pointer-events:none;z-index:60}
 <section id="vTopics" class="hidden">
   <button class="back" data-home>‹ Start</button>
   <h1>📚 Thema wählen</h1>
-  <p class="sub">Alle Fragen eines Themas in gemischter Reihenfolge.</p>
+  <p class="sub">Tippe auf ein Thema zum Spielen – oder auf 👁, um alle Fragen mit Lösung anzusehen.</p>
   <div class="tlist" id="topicList"></div>
+</section>
+
+<!-- FRAGEN ANSEHEN (Thema) -->
+<section id="vCatalog" class="hidden">
+  <button class="back" id="catBack">‹ Themen</button>
+  <h1 id="catTitle"></h1>
+  <p class="sub" id="catSub"></p>
+  <div class="btnrow" style="grid-template-columns:1fr 1fr">
+    <button class="btn" id="catPlay">▶ Thema spielen</button>
+    <button class="btn2" id="catOpenAll">Alle Lösungen zeigen</button>
+  </div>
+  <div class="card" id="catList"></div>
 </section>
 
 <!-- RANGLISTE -->
@@ -273,6 +298,7 @@ canvas#conf{position:fixed;inset:0;pointer-events:none;z-index:60}
     <div id="qFb"></div>
   </div>
   <button class="btn" id="actBtn">Antwort abgeben</button>
+  <button class="btn2 hidden" id="prevBtn" style="margin-top:10px">‹ Vorherige Fragen ansehen</button>
   <div class="wait card hidden" id="liveWait"><span class="dot"></span><span id="liveWaitTxt">Antwort gespeichert – warte auf die anderen …</span></div>
   <button class="btn hidden" id="hostReveal" style="margin-top:10px">Auflösen</button>
 </section>
@@ -313,6 +339,7 @@ canvas#conf{position:fixed;inset:0;pointer-events:none;z-index:60}
   </div>
   <div class="row"><button class="btn" id="againBtn">Neue Runde</button><button class="btn2" id="copyBtn">Ergebnis teilen</button></div>
   <p class="muted small" id="copyState"></p>
+  <button class="btn2 hidden" id="endWrong" style="margin-bottom:10px">❌ Falsche nochmal üben</button>
   <button class="btn2" id="homeBtn">Zum Start</button>
   <div class="card"><h2>📊 Nach Thema</h2><div id="topicBox"></div></div>
   <div class="card"><h2>❌ Fehler zum Nachlernen</h2><div id="reviewBox"></div></div>
@@ -355,6 +382,25 @@ canvas#conf{position:fixed;inset:0;pointer-events:none;z-index:60}
   <h2 style="color:#fff;margin:0" id="askTitle"></h2>
   <p style="margin:0;opacity:.85;max-width:420px" id="askTxt"></p>
   <div class="btnrow" style="width:100%;max-width:320px" id="askBtns"></div>
+</div>
+
+<div class="peekov hidden" id="peekOv" role="dialog" aria-modal="true" aria-labelledby="peekTitle">
+  <div class="wrap">
+    <div class="row between"><h2 id="peekTitle" style="margin:0">Frage</h2><span class="chip" id="peekTopic"></span></div>
+    <p class="muted small" style="margin:4px 0 0">Nur ansehen – die Zeit der aktuellen Frage ist angehalten.</p>
+    <div class="card">
+      <div class="q" id="peekQ"></div>
+      <div id="peekMine"></div>
+      <p class="small" id="peekSol" style="margin:10px 0 0"></p>
+      <p class="small muted" id="peekExp" style="margin:8px 0 0"></p>
+    </div>
+    <div class="btnrow" style="grid-template-columns:1fr 1fr">
+      <button class="btn2" id="peekPrev">‹ Frühere</button>
+      <button class="btn2" id="peekNext">Spätere ›</button>
+    </div>
+    <div style="height:10px"></div>
+    <button class="btn" id="peekClose">Zurück zur aktuellen Frage</button>
+  </div>
 </div>
 
 <div class="pauseov hidden" id="pauseOv">

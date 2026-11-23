@@ -252,6 +252,45 @@ try{
   await R.selectOption("#fachSel","ergo");
   ok(await R.isVisible("#goCalc") && (await R.$$("#liveTopic option[value='calc']")).length===1, "Ergonomie: Nur Rechnen auch im Live-Battle wählbar");
 
+  /* ---------- 13. Lernhilfen: Vorherige ansehen, 😢, Fragen ansehen, Falsche nochmal ---------- */
+  console.log("Lernhilfen");
+  const L=await ctx.newPage(); L.on("pageerror",e=>errors.push("L: "+e.message));
+  await L.goto(`${URL0}?mock=1&uid=ul&fach=bwl`); await L.waitForSelector("#conn.on"); await L.evaluate(()=>localStorage.removeItem("kb_bwl_progress")); await L.reload(); await L.waitForSelector("#conn.on"); await L.fill("#nick","Lea");
+  ok(!(await L.isVisible("#goWrong")), "Ohne Fehler kein „Falsche nochmal üben“-Knopf");
+  await L.click("#goTopics"); await L.click("#topicList button[data-t='0']");
+  ok(!(await L.isVisible("#prevBtn")), "Bei Frage 1 kein „Vorherige“-Knopf");
+  await answer(L,false); await L.waitForSelector(".sadpop");
+  ok(true, "Falsche Antwort → trauriger Smiley erscheint");
+  await L.waitForFunction(()=>cur&&cur.answered&&!document.getElementById("actBtn").disabled); await L.click("#actBtn");
+  await L.waitForFunction(()=>cur&&!cur.answered);
+  ok(await L.isVisible("#prevBtn"), "Ab Frage 2: Knopf „Vorherige Fragen ansehen“");
+  await L.click("#prevBtn"); await L.waitForSelector("#peekOv:not(.hidden)");
+  const pk=await L.evaluate(()=>[document.getElementById("peekTitle").textContent,document.getElementById("peekMine").textContent,cur.paused]);
+  ok(pk[0].includes("Frage 1") && /Deine Antwort/.test(pk[1]) && pk[2]===true, "Vorherige Frage mit eigener Antwort + Lösung, Zeit angehalten");
+  await L.click("#peekClose");
+  ok(await L.evaluate(()=>!cur.paused && document.getElementById("peekOv").classList.contains("hidden")), "Zurück zur aktuellen Frage, Zeit läuft weiter");
+  const nT=await L.evaluate(()=>solo.ids.length);
+  for(let i=1;i<nT;i++){ await answer(L,i%2===0); await L.waitForFunction(()=>cur&&cur.answered&&!document.getElementById("actBtn").disabled); await L.click("#actBtn"); }
+  await L.waitForSelector("#vEnd:not(.hidden)");
+  const nWrong=await L.evaluate(()=>wrongQs().length);
+  ok(nWrong>0 && await L.isVisible("#endWrong"), `Ergebnis: Knopf „Falsche nochmal üben“ (${nWrong})`);
+  await L.click("#homeBtn"); await L.waitForSelector("#vHome:not(.hidden)");
+  ok(await L.isVisible("#goWrong") && (await L.textContent("#goWrongTxt")).startsWith(String(nWrong)), "Startseite zeigt „Falsche nochmal üben“ mit Anzahl");
+  await L.click("#goWrong");
+  ok(await L.evaluate(n=>solo.ids.length===n && solo.ids.every(id=>progress.wrong[id]>0),nWrong), "Runde besteht genau aus den falschen Fragen");
+  for(let i=0;i<nWrong;i++){ await answer(L,true); await L.waitForFunction(()=>cur&&cur.answered&&!document.getElementById("actBtn").disabled); await L.click("#actBtn"); }
+  await L.waitForSelector("#vEnd:not(.hidden)");
+  ok(await L.evaluate(()=>wrongQs().length===0) && !(await L.isVisible("#endWrong")), "Alle richtig → Fehlerliste ist leer");
+  await L.click("#homeBtn"); await L.click("#goTopics"); await L.click("#topicList button[data-cat='0']");
+  await L.waitForSelector("#vCatalog:not(.hidden)");
+  const nCat=await L.evaluate(()=>[document.querySelectorAll("#catList details").length, Q.filter(q=>q.t===0).length]);
+  ok(nCat[0]===nCat[1] && nCat[0]>0, `👁 Alle ${nCat[0]} Fragen des Themas werden angezeigt`);
+  await L.click("#catOpenAll");
+  ok(await L.evaluate(()=>[...document.querySelectorAll("#catList details")].every(d=>d.open)), "„Alle Lösungen zeigen“ klappt alles auf");
+  await L.click("#catPlay"); await L.waitForSelector("#vQuiz:not(.hidden)");
+  ok(await L.evaluate(()=>solo.topic==="0"), "Aus der Fragenliste direkt das Thema spielen");
+  await L.evaluate(()=>{ stopQuiz(); });
+
   /* ---------- 9. Jede Frage jedes Fachs: richtige Antwort wird als richtig gewertet ---------- */
   console.log("Alle Fragen aller Fächer");
   const F=await ctx.newPage(); F.on("pageerror",e=>errors.push("F: "+e.message));
