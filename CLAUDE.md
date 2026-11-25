@@ -20,4 +20,5 @@ Quiz-App für eine Studentin (DHBW, Personalisierte Ernährung). Sie schreibt in
 - Nur Inhalte aus ihren Unterlagen; jede Frage mit Erklärung `e`; keine Namen von Lehrpersonen.
 
 ## Vor dem Pushen
+`python3 tools/stamp.py` ausführen (Versionsnummer an alle Skripte + Anzeige „Version: …“ auf der Startseite – sonst laden Handys alte Dateien aus dem Cache).
 `node tests/test.mjs` muss grün sein (Test-Modus mit mehreren simulierten Handys). Optional `node tests/smoke-firebase.mjs` gegen die echte Datenbank (räumt danach auf).

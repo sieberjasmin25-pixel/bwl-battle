@@ -423,6 +423,21 @@ try{
   await Z.uncheck("#noTime2"); await Z.evaluate(()=>{ location.hash=""; });
   ok(!(await Z.isChecked("#noTime")), "Ausschalten wirkt überall");
 
+  /* ---------- 18. Punkte: 100 / 50 / 0 ohne Zeitbonus + Versionsanzeige ---------- */
+  console.log("Punkte & Version");
+  const K=await ctx.newPage(); K.on("pageerror",e=>errors.push("K: "+e.message));
+  await K.goto(`${URL0}?mock=1&uid=uk&fach=ergo`); await K.waitForSelector("#conn.on");
+  const pk2=await K.evaluate(()=>{
+    const run=(id,fill)=>{ renderQuestion(QBY[id],{label:"x",score:0,canPause:false,deadline:Date.now()+60000,onDone:()=>{}}); fill(); const r=score(); clearInterval(cur.timerId); return r.pts; };
+    const mcRight=run("ip4",()=>{ cur.sel=cur.shuffled.findIndex(o=>o.i===0); });
+    const mcWrong=run("ip4",()=>{ cur.sel=cur.shuffled.findIndex(o=>o.i!==0); });
+    const matchPart=run("ip2",()=>{ cur.matchSel=cur.shuffled.map((it,k)=>k===0?(it.c+1)%4:it.c); });
+    const orderPart=run("or1",()=>{ const idx=cur.shuffled.map((o,k)=>({o,k})).sort((a,b)=>a.o.i-b.o.i).map(x=>x.k); cur.seq=[idx[1],idx[0],idx[2],idx[3]]; });
+    stopQuiz(); show("vHome"); return [mcRight,mcWrong,matchPart,orderPart];
+  });
+  ok(pk2[0]===100 && pk2[1]===0 && pk2[2]===50 && pk2[3]===50, `Punkte: richtig 100, falsch 0, teilweise 50 – sofort geantwortet trotzdem kein Bonus (${pk2.join("/")})`);
+  ok(/Version: \d\d\.\d\d\.\d{4}/.test(await K.textContent("#appVer")), "Versionsanzeige auf der Startseite");
+
   /* ---------- 9. Jede Frage jedes Fachs: richtige Antwort wird als richtig gewertet ---------- */
   console.log("Alle Fragen aller Fächer");
   const F=await ctx.newPage(); F.on("pageerror",e=>errors.push("F: "+e.message));

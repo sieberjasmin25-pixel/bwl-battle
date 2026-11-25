@@ -142,7 +142,7 @@ canvas#conf{position:fixed;inset:0;pointer-events:none;z-index:60}
     <div class="status" id="conn"><i></i><span>Verbinde mit der Rangliste …</span></div>
   </div>
   <div class="btnrow">
-    <label class="tgl" for="noTime"><input type="checkbox" id="noTime"><span><b>⏱ Solo ohne Zeitlimit</b><br><span class="muted small">Kein Zeitdruck – dafür kein Zeitbonus</span></span></label>
+    <label class="tgl" for="noTime"><input type="checkbox" id="noTime"><span><b>⏱ Solo ohne Zeitlimit</b><br><span class="muted small">Keine Uhr – in Ruhe nachdenken</span></span></label>
     <button class="mode needname" id="goMix"><span class="ic">🎯</span><div><b>Solo · Gemischt</b><span>15 Fragen aus allen Themen, bevorzugt welche, die du noch nicht hattest</span></div></button>
     <button class="mode needname" id="goCalc"><span class="ic">🧮</span><div><b>Solo · Nur Rechnen</b><span id="goCalcTxt">Nur Rechenaufgaben aus allen Themen</span></div></button>
     <button class="mode needname hidden" id="goWrong"><span class="ic">❌</span><div><b>Falsche nochmal üben</b><span id="goWrongTxt"></span></div></button>
@@ -170,7 +170,8 @@ canvas#conf{position:fixed;inset:0;pointer-events:none;z-index:60}
       <button class="btn2" id="goMe">📊 Mein Profil</button>
     </div>
   </div>
-  <p class="muted small">Punkte: 100 pro richtiger Antwort, dazu bis zu +50 Zeitbonus. Rechenaufgaben haben kein Zeitlimit: 100 P richtig, 50 P knapp daneben (höchstens 5 %). Bei Zuordnungen gibt es Teilpunkte. In die Rangliste zählen Solo-Runden, Duelle und Live-Battles. Kein Konto nötig – dein Handy merkt sich, wer du bist.</p>
+  <p class="muted small">Punkte: ✅ richtig 100 · 🟡 teilweise richtig 50 · ❌ falsch 0 – ohne Zeitbonus. Rechenaufgaben haben kein Zeitlimit (teilweise = höchstens 5 % daneben). In die Rangliste zählen Solo-Runden, Duelle und Live-Battles. Kein Konto nötig – dein Handy merkt sich, wer du bist.</p>
+  <p class="muted small" id="appVer" style="text-align:center">Version: 25.11.2026 21:57</p>
 </section>
 
 <!-- THEMEN -->
@@ -183,7 +184,7 @@ canvas#conf{position:fixed;inset:0;pointer-events:none;z-index:60}
   <div class="row between"><b>Themen</b><span><button class="linkbtn" id="selAll">Alle</button>·<button class="linkbtn" id="selNone">Keine</button></span></div>
   <div style="height:6px"></div>
   <div class="tlist" id="topicList"></div>
-  <label class="tgl" for="noTime2"><input type="checkbox" id="noTime2"><span><b>⏱ Solo ohne Zeitlimit</b><br><span class="muted small">Kein Zeitdruck – dafür kein Zeitbonus</span></span></label>
+  <label class="tgl" for="noTime2"><input type="checkbox" id="noTime2"><span><b>⏱ Solo ohne Zeitlimit</b><br><span class="muted small">Keine Uhr – in Ruhe nachdenken</span></span></label>
   <div class="startbar">
     <button class="btn" id="cfgStart">▶ Starten</button>
     <p class="muted small" id="cfgInfo" style="margin:6px 0 0;text-align:center"></p>
@@ -445,11 +446,11 @@ canvas#conf{position:fixed;inset:0;pointer-events:none;z-index:60}
 </div>
 
 <!-- Fächer: pro Fach eine Datei in faecher/ -->
-<script src="faecher/bwl.js"></script>
-<script src="faecher/ergonomie.js"></script>
-<script src="faecher/architektur.js"></script>
-<script src="firebase-config.js"></script>
-<script src="vendor/firebase-bundle.js"></script>
-<script src="app.js"></script>
+<script src="faecher/bwl.js?v=20261125-2157"></script>
+<script src="faecher/ergonomie.js?v=20261125-2157"></script>
+<script src="faecher/architektur.js?v=20261125-2157"></script>
+<script src="firebase-config.js?v=20261125-2157"></script>
+<script src="vendor/firebase-bundle.js?v=20261125-2157"></script>
+<script src="app.js?v=20261125-2157"></script>
 </body>
 </html>

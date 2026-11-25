@@ -391,8 +391,7 @@ function score(){
     if(!isNaN(v)&&Math.abs(v-q.a)<=Math.max(tol,1e-9)) frac=1;
     else if(!isNaN(v)&&q.a!==0&&Math.abs(v-q.a)<=Math.abs(q.a)*0.05) frac=0.5;   // knapp daneben (≤ 5 %) = teilweise
   }
-  const speed=cur.limit?Math.max(0,Math.min(1,timeLeft()/cur.limit)):0;
-  const pts=Math.round(frac*100+(frac===1&&cur.limit&&q.type!=="num"?50*speed:0));
+  const pts = frac===1 ? 100 : frac>0 ? 50 : 0;   // richtig 100 · teilweise 50 · falsch 0 – kein Zeitbonus
   return {frac:Math.round(frac*1000)/1000,pts,choice};
 }
 function givenText(){
@@ -508,7 +507,7 @@ async function soloEnd(){
   if(cur) clearInterval(cur.timerId);
   const s=solo; s.done=true; $("prevBtn").classList.add("hidden"); go("vEnd","ergebnis");
   $("endWrong").textContent=`❌ Falsche nochmal üben (${wrongQs().length})`; $("endWrong").classList.toggle("hidden",!wrongQs().length);
-  const right=s.res.filter(r=>r.frac===1).length, max=s.ids.length*150;
+  const right=s.res.filter(r=>r.frac===1).length, max=s.ids.length*100;
   $("endMode").textContent = topicLabel(s.topic) + (s.tset ? " · "+(s.tset.size===1?TOPICS[[...s.tset][0]]:s.tset.size+" Themen") : "");
   $("endScore").textContent=fmt(s.score)+" P"; $("endDetail").textContent= s.topic==="endlos" ? `${right} richtig in Folge 🔥 (von ${s.ids.length} Fragen${s.tset?" in deiner Auswahl":" im Fach"})` : `${right}/${s.ids.length} komplett richtig · max. ${fmt(max)} P`;
   renderTopicStats(s.res,$("topicBox")); renderReview(s.res,$("reviewBox"));
