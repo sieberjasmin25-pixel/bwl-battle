@@ -438,6 +438,26 @@ try{
   ok(pk2[0]===100 && pk2[1]===0 && pk2[2]===50 && pk2[3]===50, `Punkte: richtig 100, falsch 0, teilweise 50 – sofort geantwortet trotzdem kein Bonus (${pk2.join("/")})`);
   ok(/Version: \d\d\.\d\d\.\d{4}/.test(await K.textContent("#appVer")), "Versionsanzeige auf der Startseite");
 
+  /* ---------- 19. Benachrichtigungen (Test-Modus) ---------- */
+  console.log("Benachrichtigungen");
+  const N=await ctx.newPage(); N.on("pageerror",e=>errors.push("N: "+e.message));
+  await N.goto(`${URL0}?mock=1&uid=un&fach=bwl`); await N.waitForSelector("#conn.on"); await N.fill("#nick","Nina");
+  await N.waitForSelector("#pushCard:not(.hidden)");
+  ok(await N.isChecked("#pushDuel") && await N.isChecked("#pushLive"), "Karte „Benachrichtigungen“ mit beiden Schaltern (an)");
+  await N.click("#pushOn"); await N.waitForFunction(()=>/Eingeschaltet/.test(document.getElementById("pushMsg").textContent));
+  let pd=await N.evaluate(()=>JSON.parse(localStorage.getItem("mockdb:push/un")));
+  ok(pd && pd.token==="mock-un" && pd.duel===true && pd.live===true, "Einschalten speichert Token und Einstellungen");
+  await N.uncheck("#pushLive"); await N.waitForFunction(()=>JSON.parse(localStorage.getItem("mockdb:push/un")).live===false);
+  ok(true, "Schalter „Live-Battle“ aus → gespeichert");
+  await N.reload(); await N.waitForSelector("#pushCard:not(.hidden)"); await N.waitForFunction(()=>/aktiv/.test(document.getElementById("pushMsg").textContent));
+  ok(!(await N.isChecked("#pushLive")) && await N.isChecked("#pushDuel"), "Nach Neuladen: Einstellungen und „aktiv“ bleiben erhalten");
+  await N.click("#goLive"); await N.click("#createRoom"); await N.waitForSelector("#vLobby:not(.hidden)");
+  ok(await N.evaluate(()=>live.game.pushed===false), "Neuer Live-Raum ist für die Ankündigung markiert (pushed:false)");
+  await N.evaluate(()=>{ leaveLive(); location.hash=""; });
+  await N.click("#goDuels"); await N.click("#duelNewBtn"); await N.click("#dnLink"); await N.waitForSelector("#dvGo");
+  ok(await N.evaluate(()=>duel.all[duel.openId].by==="un"), "Duell merkt sich, wer zuletzt gehandelt hat (kein Push an sich selbst)");
+  ok(await N.evaluate(()=>document.querySelector('link[rel="manifest"]')!==null), "App-Manifest für „Zum Home-Bildschirm“ eingebunden");
+
   /* ---------- 9. Jede Frage jedes Fachs: richtige Antwort wird als richtig gewertet ---------- */
   console.log("Alle Fragen aller Fächer");
   const F=await ctx.newPage(); F.on("pageerror",e=>errors.push("F: "+e.message));

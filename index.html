@@ -4,6 +4,10 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#0e3b36">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Dorfduell">
 <title>Gallisches Dorfduell</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚔️</text></svg>">
 <style>
@@ -170,8 +174,17 @@ canvas#conf{position:fixed;inset:0;pointer-events:none;z-index:60}
       <button class="btn2" id="goMe">📊 Mein Profil</button>
     </div>
   </div>
+  <div class="card hidden" id="pushCard">
+    <h2>🔔 Benachrichtigungen</h2>
+    <div class="btnrow">
+      <label class="tgl" for="pushDuel"><input type="checkbox" id="pushDuel" checked><span><b>⚔️ Duell: du bist dran</b><br><span class="muted small">Wenn dein:e Gegner:in gespielt hat oder dich herausfordert</span></span></label>
+      <label class="tgl" for="pushLive"><input type="checkbox" id="pushLive" checked><span><b>🔴 Live-Battle gestartet</b><br><span class="muted small">Wenn jemand einen Live-Raum öffnet</span></span></label>
+      <button class="btn" id="pushOn">Benachrichtigungen erlauben</button>
+    </div>
+    <p class="muted small" id="pushMsg" style="margin:8px 0 0"></p>
+  </div>
   <p class="muted small">Punkte: ✅ richtig 100 · 🟡 teilweise richtig 50 · ❌ falsch 0 – ohne Zeitbonus. Rechenaufgaben haben kein Zeitlimit (teilweise = höchstens 5 % daneben). In die Rangliste zählen Solo-Runden, Duelle und Live-Battles. Kein Konto nötig – dein Handy merkt sich, wer du bist.</p>
-  <p class="muted small" id="appVer" style="text-align:center">Version: 25.11.2026 21:57</p>
+  <p class="muted small" id="appVer" style="text-align:center">Version: 25.11.2026 22:01</p>
 </section>
 
 <!-- THEMEN -->
@@ -446,11 +459,11 @@ canvas#conf{position:fixed;inset:0;pointer-events:none;z-index:60}
 </div>
 
 <!-- Fächer: pro Fach eine Datei in faecher/ -->
-<script src="faecher/bwl.js?v=20261125-2157"></script>
-<script src="faecher/ergonomie.js?v=20261125-2157"></script>
-<script src="faecher/architektur.js?v=20261125-2157"></script>
-<script src="firebase-config.js?v=20261125-2157"></script>
-<script src="vendor/firebase-bundle.js?v=20261125-2157"></script>
-<script src="app.js?v=20261125-2157"></script>
+<script src="faecher/bwl.js?v=20261125-2201"></script>
+<script src="faecher/ergonomie.js?v=20261125-2201"></script>
+<script src="faecher/architektur.js?v=20261125-2201"></script>
+<script src="firebase-config.js?v=20261125-2201"></script>
+<script src="vendor/firebase-bundle.js?v=20261125-2201"></script>
+<script src="app.js?v=20261125-2201"></script>
 </body>
 </html>

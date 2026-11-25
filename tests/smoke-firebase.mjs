@@ -35,8 +35,9 @@ try{
   A=await user("Anna"); ok(await A.isVisible("#conn.on"),"Anna: anonym angemeldet & verbunden ("+await A.textContent("#conn")+")");
   B=await user("Ben");  ok(await B.isVisible("#conn.on"),"Ben: verbunden");
   // Solo-Runde Thema → Rangliste
-  await A.click("#goTopics"); await A.click("#topicList button[data-t='14']");
-  for(let i=0;i<5;i++){ await answer(A); await A.waitForFunction(()=>!document.getElementById("actBtn").disabled); await A.click("#actBtn"); }
+  await A.click("#goTopics"); await A.click("#topicList button[data-t='14']"); await A.click("#cfgStart");
+  const nT=await A.evaluate(()=>solo.ids.length);
+  for(let i=0;i<nT;i++){ await answer(A); await A.waitForFunction(()=>!document.getElementById("actBtn").disabled); await A.click("#actBtn"); }
   await A.waitForFunction(()=>/gespeichert|Bestwert/.test(document.getElementById("saveState").textContent),null,{timeout:20000});
   ok(true,"Solo-Ergebnis in Firestore gespeichert");
   await B.waitForFunction(()=>rankRows.some(r=>r.nick==="Test-Anna"),null,{timeout:20000});

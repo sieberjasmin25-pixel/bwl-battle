@@ -22,3 +22,8 @@ Quiz-App für eine Studentin (DHBW, Personalisierte Ernährung). Sie schreibt in
 ## Vor dem Pushen
 `python3 tools/stamp.py` ausführen (Versionsnummer an alle Skripte + Anzeige „Version: …“ auf der Startseite – sonst laden Handys alte Dateien aus dem Cache).
 `node tests/test.mjs` muss grün sein (Test-Modus mit mehreren simulierten Handys). Optional `node tests/smoke-firebase.mjs` gegen die echte Datenbank (räumt danach auf).
+
+## Push-Nachrichten
+- Client: Karte „🔔 Benachrichtigungen“ in `app.js` (pushInit/pushRegister/pushSave), Service Worker `sw.js`, `manifest.webmanifest`, `icons/`. Token + Einstellungen in `push/{uid}`. Öffentlicher VAPID-Schlüssel in `firebase-config.js` (`FIREBASE_VAPID`).
+- Sender: `.github/workflows/push.yml` (alle 5 Min.) → `tools/push/send.mjs` (firebase-admin, Secret `FIREBASE_SERVICE_ACCOUNT`). Entscheidungslogik in `tools/push/logic.mjs`, Tests: `node tests/push-logic.test.mjs`.
+- Duelle: Feld `by` = wer zuletzt gehandelt hat, `pushSent.<uid>` = schon gemeldeter Stand. Live-Räume: `pushed`.

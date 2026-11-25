@@ -8,3 +8,5 @@ window.FIREBASE_CONFIG = {
   messagingSenderId: "779089260023",
   appId: "1:779089260023:web:e72f1e662ee9bd5d07d2f2"
 };
+// Öffentlicher Web-Push-Schlüssel (Firebase → Projekteinstellungen → Cloud Messaging → Web Push certificates).
+window.FIREBASE_VAPID = "";

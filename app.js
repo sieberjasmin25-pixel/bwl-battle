@@ -57,7 +57,7 @@ const BE = (()=>{
         const fin=(uid,err)=>{ if(done) return; done=true; api.uid=uid; api.ok=!!uid; api.error=err||null; resolve(uid); };
         setTimeout(()=>fin(null,"timeout"),15000);
         try{
-          const app=FB.initializeApp(window.FIREBASE_CONFIG);
+          const app=FB.initializeApp(window.FIREBASE_CONFIG); api.app=app;
           fs=FB.initializeFirestore(app,{experimentalAutoDetectLongPolling:true,ignoreUndefinedProperties:true});
           const auth=FB.getAuth(app);
           const off=FB.onAuthStateChanged(auth,u=>{ if(u){ off(); fin(u.uid); } });
@@ -698,7 +698,7 @@ function duelsWatch(){
 function duelsChanged(){
   duel.all={}; (duel.openList||[]).concat(duel.mine).forEach(d=>duel.all[d.id]=d);
   // fertige Duelle abschließen (wer zuletzt spielt oder wer es zuerst sieht)
-  duel.mine.forEach(d=>{ if(d.status==="active"&&bothDone(d)&&!duel.closing.has(d.id)){ duel.closing.add(d.id); BE.update("duels/"+d.id,{status:"done",up:Date.now()}).catch(()=>{}); } });
+  duel.mine.forEach(d=>{ if(d.status==="active"&&bothDone(d)&&!duel.closing.has(d.id)){ duel.closing.add(d.id); BE.update("duels/"+d.id,{status:"done",up:Date.now(),by:me}).catch(()=>{}); } });
   duelsRecordResults();
   renderDuelBadge();
   if(isShown("vDuels")) renderDuelList();
@@ -756,7 +756,7 @@ $("dnLink").onclick=()=>createDuel(null,"");
 async function createDuel(opp,oppNick){
   if(!BE.ok||!nick()) return;
   const id=Math.random().toString(36).slice(2,8)+Date.now().toString(36).slice(-4);
-  const d={fach:FACH.kurz,a:me,an:nick(),b:opp||null,bn:oppNick||"",p:opp?[me,opp]:[me],status:opp?"active":"open",rd:{},ra:{},rb:{},at:Date.now(),up:Date.now()};
+  const d={fach:FACH.kurz,a:me,an:nick(),b:opp||null,bn:oppNick||"",p:opp?[me,opp]:[me],status:opp?"active":"open",rd:{},ra:{},rb:{},at:Date.now(),up:Date.now(),by:me};
   try{ await BE.set("duels/"+id,d); }catch(e){ $("dnMsg").textContent="Duell konnte nicht erstellt werden – Internet prüfen."; return; }
   duel.all[id]=Object.assign({id},d); if(!duel.mine.find(x=>x.id===id)) duel.mine.push(duel.all[id]);
   openDuel(id);
@@ -815,7 +815,7 @@ $("dvGiveUp").onclick=async()=>{
   const d=duel.all[duel.openId]; if(!d) return;
   if(d.status==="open"){ if(confirm("Offene Herausforderung löschen?")){ try{ await BE.del("duels/"+d.id); }catch(e){} location.hash="duelle"; } return; }
   if(!confirm("Wirklich aufgeben? Das Duell zählt dann als Niederlage.")) return;
-  try{ await BE.update("duels/"+d.id,{status:"done",gaveUp:me,up:Date.now()}); }catch(e){}
+  try{ await BE.update("duels/"+d.id,{status:"done",gaveUp:me,up:Date.now(),by:me}); }catch(e){}
 };
 const loadingDuels={};
 function loadDuelOnce(id){
@@ -829,7 +829,7 @@ function loadDuelOnce(id){
   duel.unsub.push(un);
 }
 async function joinDuel(d){
-  try{ await BE.update("duels/"+d.id,{b:me,bn:nick(),p:[d.a,me],status:"active",up:Date.now()}); }
+  try{ await BE.update("duels/"+d.id,{b:me,bn:nick(),p:[d.a,me],status:"active",up:Date.now(),by:me}); }
   catch(e){ $("dvStatus").insertAdjacentHTML("beforeend",`<p class="small" style="color:var(--bad)">Annehmen hat nicht geklappt – vielleicht war jemand schneller.</p>`); return; }
   if(pendingDuel===d.id){ pendingDuel=null; history.replaceState(null,"",location.pathname+location.hash); }
 }
@@ -847,7 +847,7 @@ function openPick(d,r){
     let qs=shuffle(Q.filter(q=>q.t===t&&!usedQ.has(q.id)),Math.random).map(q=>q.id);
     if(qs.length<DQ) qs=qs.concat(shuffle(Q.filter(q=>q.t===t&&!qs.includes(q.id))).map(q=>q.id));
     const rd={t,q:qs.slice(0,DQ)};
-    try{ await BE.update("duels/"+d.id,{["rd."+r]:rd,up:Date.now()}); }catch(e){ alert("Speichern hat nicht geklappt – Internet prüfen."); go("vDuel","duell"); renderDuel(); return; }
+    try{ await BE.update("duels/"+d.id,{["rd."+r]:rd,up:Date.now(),by:me}); }catch(e){ alert("Speichern hat nicht geklappt – Internet prüfen."); go("vDuel","duell"); renderDuel(); return; }
     d.rd=Object.assign({},d.rd,{[r]:rd}); playDuelRound(d,r);
   });
   go("vDuelPick","duell-thema");
@@ -870,13 +870,13 @@ function playDuelRound(d,r){
     const q=qInst(QBY[rd.q[i]], d.id+":"+r+":"+i);
     // Platzhalter speichern: wer die Frage sieht und abbricht, bekommt 0 Punkte
     arr.push({f:0,p:0});
-    try{ await BE.update("duels/"+d.id,{["r"+w+"."+r]:arr,up:Date.now()}); }catch(e){}
+    try{ await BE.update("duels/"+d.id,{["r"+w+"."+r]:arr,up:Date.now(),by:me}); }catch(e){}
     renderQuestion(q,{label:`Runde ${r+1} · Frage ${i+1}/${DQ} · vs ${opName(d)}`,score:arr.reduce((s,x)=>s+(x.p||0),0),canPause:false,deadline:Date.now()+TIME[q.type]*1000,
       onDone:async(rs,timeout)=>{
         arr[i]={f:rs.frac,p:rs.pts}; res.push({id:q.id,frac:rs.frac,pts:rs.pts}); markSeen(q.id,rs.frac===1);
         $("qScore").textContent=fmt(arr.reduce((s,x)=>s+(x.p||0),0)); showSolution(rs,timeout);
         $("actBtn").disabled=true;
-        try{ await BE.update("duels/"+d.id,{["r"+w+"."+r]:arr,up:Date.now()}); }catch(e){}
+        try{ await BE.update("duels/"+d.id,{["r"+w+"."+r]:arr,up:Date.now(),by:me}); }catch(e){}
         $("actBtn").textContent= i+1<DQ?"Weiter →":"Runde abschließen";
         cur.next=nextQ; upd();
       }});
@@ -930,7 +930,7 @@ $("createRoom").onclick=async()=>{
       const ex=await BE.get("rooms/"+code);
       if(ex && (ex.status==="lobby" || Date.now()-(ex.wAt||0)<6*3600e3)) continue;  // offene Räume nie überschreiben
       const gid=Math.random().toString(36).slice(2,10);
-      const g={fach:FACH.kurz,code,gid,host:me,hostNick:nick(),topic:$("liveTopic").value,status:"lobby",qids:[],orders:{},idx:-1,endsAt:0,pausedLeft:null,wAt:Date.now(),hb:Date.now()};
+      const g={fach:FACH.kurz,code,gid,pushed:false,host:me,hostNick:nick(),topic:$("liveTopic").value,status:"lobby",qids:[],orders:{},idx:-1,endsAt:0,pausedLeft:null,wAt:Date.now(),hb:Date.now()};
       await BE.set("rooms/"+code,g);
       Object.assign(live,{code,gid,isHost:true,myAns:{},myScore:0,saved:false});
       await BE.set(myPlayerPath(),{gid,nick:nick(),score:0,ans:{},seen:Date.now(),left:false});
@@ -1209,6 +1209,59 @@ function hotEnd(){
   setTimeout(()=>confetti(320),150);
 }
 
+/* ================= PUSH-BENACHRICHTIGUNGEN ================= */
+// Token + Einstellungen liegen in push/{uid}. Verschickt wird von einem GitHub-Hintergrunddienst (tools/push/send.mjs).
+const pushSt={doc:null,reg:null};
+const isIOS=/iP(hone|ad|od)/.test(navigator.userAgent)||(navigator.platform==="MacIntel"&&navigator.maxTouchPoints>1);
+const isStandalone=()=>{ try{ return matchMedia("(display-mode: standalone)").matches||navigator.standalone===true; }catch(e){ return false; } };
+function pushMsg(t){ $("pushMsg").textContent=t; }
+async function pushInit(){
+  if(!BE.ok) return;
+  $("pushCard").classList.remove("hidden");
+  try{ pushSt.doc=await BE.get("push/"+me); }catch(e){ pushSt.doc=null; }
+  const d=pushSt.doc||{};
+  $("pushDuel").checked=d.duel!==false; $("pushLive").checked=d.live!==false;
+  const active=!!d.token && (BE.mode==="mock" || (typeof Notification!=="undefined" && Notification.permission==="granted"));
+  $("pushOn").textContent= active ? "Benachrichtigungen neu verbinden" : "Benachrichtigungen erlauben";
+  if(active){ pushMsg("✓ Auf diesem Handy aktiv. Benachrichtigungen kommen mit ein paar Minuten Verzögerung."); if(BE.mode!=="mock") pushRegister(false); }
+  else if(BE.mode!=="mock" && !window.FIREBASE_VAPID){ pushMsg("Benachrichtigungen werden gerade eingerichtet – bald verfügbar."); $("pushOn").disabled=true; }
+  else if(isIOS && !isStandalone()){ pushMsg("📱 iPhone: Tippe unten in Safari auf „Teilen“ → „Zum Home-Bildschirm“ und öffne die App dann von dort. Danach kannst du sie hier einschalten."); $("pushOn").disabled=true; }
+  else pushMsg("Du wirst benachrichtigt, wenn du im Duell dran bist oder jemand ein Live-Battle startet.");
+}
+async function pushRegister(ask){
+  if(!("serviceWorker" in navigator) || typeof Notification==="undefined") throw new Error("nosupport");
+  if(!(await FB.msgSupported())) throw new Error("nosupport");
+  if(ask){ const perm=await Notification.requestPermission(); if(perm!=="granted") throw new Error("denied"); }
+  else if(Notification.permission!=="granted") return null;
+  pushSt.reg = pushSt.reg || await navigator.serviceWorker.register("sw.js");
+  await navigator.serviceWorker.ready;
+  const token=await FB.getToken(FB.getMessaging(BE.app),{vapidKey:window.FIREBASE_VAPID,serviceWorkerRegistration:pushSt.reg});
+  if(token && pushSt.doc && pushSt.doc.token!==token){ await BE.update("push/"+me,{token,at:Date.now()}).catch(()=>{}); pushSt.doc.token=token; }
+  return token;
+}
+async function pushSave(patch){
+  if(!BE.ok||!me) return;
+  const base={duel:$("pushDuel").checked,live:$("pushLive").checked,nick:nick()||"",at:Date.now()};
+  const doc=Object.assign({token:(pushSt.doc||{}).token||""},base,patch||{});
+  await BE.set("push/"+me,doc); pushSt.doc=doc;
+}
+$("pushOn").onclick=async()=>{
+  $("pushOn").disabled=true; pushMsg("Einen Moment …");
+  try{
+    const token = BE.mode==="mock" ? "mock-"+me : await pushRegister(true);
+    if(!token) throw new Error("notoken");
+    await pushSave({token});
+    $("pushOn").textContent="Benachrichtigungen neu verbinden";
+    pushMsg("✓ Eingeschaltet! Benachrichtigungen kommen mit ein paar Minuten Verzögerung.");
+  }catch(e){
+    console.warn(e);
+    pushMsg( e&&e.message==="denied" ? "Du hast Benachrichtigungen nicht erlaubt. Du kannst das in den Browser-Einstellungen für diese Seite ändern."
+      : e&&e.message==="nosupport" ? (isIOS?"📱 Auf dem iPhone geht das nur, wenn die App über „Teilen → Zum Home-Bildschirm“ installiert ist (ab iOS 16.4).":"Dieser Browser unterstützt leider keine Benachrichtigungen. Probier Chrome.")
+      : "Das hat nicht geklappt – bitte später noch einmal versuchen.");
+  }finally{ $("pushOn").disabled=false; }
+};
+$("pushDuel").onchange=$("pushLive").onchange=()=>{ if(pushSt.doc) pushSave().then(()=>pushMsg("✓ Gespeichert.")).catch(()=>{}); };
+
 /* ================= KONFETTI ================= */
 const cv=$("conf"), cx=cv.getContext("2d"); let parts=[], anim=null;
 function confetti(n){
@@ -1236,6 +1289,6 @@ BE.init().then(uid=>{
   me=uid;
   if(!uid){ setConn("off","Keine Verbindung zur Rangliste – Solo & Reihum gehen trotzdem"); renderHome(); return; }
   setConn("on", BE.mode==="mock"?"Test-Modus (nur dieses Gerät)":"Verbunden – Rangliste, Duelle & Live aktiv");
-  startRankWatch(); duelsWatch(); renderHome();
+  startRankWatch(); duelsWatch(); renderHome(); pushInit();
   if(pendingDuel) loadDuelOnce(pendingDuel);
 });
