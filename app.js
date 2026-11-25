@@ -15,7 +15,7 @@ const pl = (n,one,many) => fmt(n)+" "+(Math.round(Number(n)||0)===1?one:many);
 const fmt = n => Math.round(Number(n)||0).toLocaleString("de-DE");
 const LS = {get(k){try{return localStorage.getItem(k)}catch(e){return null}},set(k,v){try{localStorage.setItem(k,v)}catch(e){}}};
 const shuffle = (a,rnd=Math.random) => {a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(rnd()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a};
-const TIME = {mc:30, match:75, num:60, multi:45, order:60};
+const TIME = {mc:30, match:75, num:0, multi:45, order:60};   // 0 = ohne Zeitlimit (Rechenaufgaben)
 const TYPE_LABEL = {mc:"Multiple Choice", match:"Zuordnung", num:"Rechnen", multi:"Mehrfachauswahl", order:"Reihenfolge"};
 const ROUND = 15;
 const SHAPES = ["▲","◆","●","■"], SHCOL = ["var(--k0)","var(--k1)","var(--k2)","var(--k3)"];
@@ -305,13 +305,14 @@ $("catOpenAll").onclick=()=>{ catAllOpen=!catAllOpen; renderCatalog(); };
 let cur=null;
 function renderQuestion(q, opts){
   if(cur) clearInterval(cur.timerId);
-  cur={q,sel:null,matchSel:null,answered:false,onDone:opts.onDone,deadline:opts.deadline,limit:opts.limit||TIME[q.type],paused:false};
+  cur={q,sel:null,matchSel:null,answered:false,onDone:opts.onDone,deadline:opts.deadline,limit:opts.noTime?0:(opts.limit!=null?opts.limit:TIME[q.type]),paused:false};
+  $("tBar").parentElement.classList.toggle("hidden",!cur.limit);
   show("vQuiz");
   $("qCount").textContent=opts.label; $("qTopic").textContent=TOPICS[q.t];
   $("qType").textContent = TYPE_LABEL[q.type]||"";
   $("qText").textContent=q.q; $("qFb").innerHTML=""; $("qScore").textContent=fmt(opts.score||0);
   $("actBtn").classList.remove("hidden"); $("liveWait").classList.add("hidden"); $("hostReveal").classList.add("hidden");
-  $("pauseBtn").classList.toggle("hidden",!opts.canPause);
+  $("pauseBtn").classList.toggle("hidden",!opts.canPause||!cur.limit);
   const body=$("qBody"); body.innerHTML="";
   if(q.type==="mc"){
     cur.shuffled = opts.order ? opts.order.map(i=>({t:q.o[i],i})) : shuffle(q.o.map((t,i)=>({t,i})));
@@ -374,7 +375,9 @@ function upd(){
 }
 function timeLeft(){ if(!cur) return 0; if(cur.paused) return cur.pausedLeft/1000; return Math.max(0,(cur.deadline-Date.now())/1000); }
 function tick(){
-  if(!cur) return; const left=timeLeft();
+  if(!cur) return;
+  if(!cur.limit){ $("tLeft").textContent="⏱ ohne Zeitlimit"; return; }
+  const left=timeLeft();
   $("tBar").style.width=Math.min(100,left/cur.limit*100)+"%"; $("tLeft").textContent=Math.ceil(left)+" s";
   if(!cur.answered && !cur.paused && left<=0){ submit(true); }
 }
@@ -384,9 +387,12 @@ function score(){
   else if(q.type==="multi"){ let hits=0,bad=0; cur.msel.forEach(k=>{ if(q.c.includes(cur.shuffled[k].i)) hits++; else bad++; }); frac=(hits===q.c.length&&!bad)?1:Math.max(0,(hits-bad)/q.c.length); }
   else if(q.type==="order"){ const n=cur.seq.filter((k,p)=>cur.shuffled[k].i===p).length; frac=n/q.items.length; }
   else if(q.type==="match"){ let n=0; cur.shuffled.forEach((it,k)=>{if(cur.matchSel[k]===it.c)n++;}); frac=n/q.items.length; }
-  else { const v=parseNum(($("numIn")||{}).value||""); const tol=q.tol?Math.abs(q.a)*q.tol:0; frac=(!isNaN(v)&&Math.abs(v-q.a)<=Math.max(tol,1e-9))?1:0; }
-  const speed=Math.max(0,Math.min(1,timeLeft()/cur.limit));
-  const pts=Math.round(frac*100+(frac===1?50*speed:0));
+  else { const v=parseNum(($("numIn")||{}).value||""); const tol=q.tol?Math.abs(q.a)*q.tol:0;
+    if(!isNaN(v)&&Math.abs(v-q.a)<=Math.max(tol,1e-9)) frac=1;
+    else if(!isNaN(v)&&q.a!==0&&Math.abs(v-q.a)<=Math.abs(q.a)*0.05) frac=0.5;   // knapp daneben (≤ 5 %) = teilweise
+  }
+  const speed=cur.limit?Math.max(0,Math.min(1,timeLeft()/cur.limit)):0;
+  const pts=Math.round(frac*100+(frac===1&&cur.limit&&q.type!=="num"?50*speed:0));
   return {frac:Math.round(frac*1000)/1000,pts,choice};
 }
 function givenText(){
@@ -415,7 +421,7 @@ function showSolution(res,timeout){
   else if(q.type==="match"){ let n=0; cur.shuffled.forEach((it,k)=>{const g=cur.matchSel[k]===it.c;if(g)n++;box.children[k].classList.add(g?"right":"wrong");
       if(!g){const s=document.createElement("p");s.className="small";s.style.margin="6px 0 0";s.innerHTML="→ richtig: <b>"+esc(q.cats[it.c])+"</b>";box.children[k].appendChild(s);}});
       detail=`${n} von ${q.items.length} richtig zugeordnet`; }
-  else { $("numIn").disabled=true; detail="Richtig: "+numText(q); }
+  else { $("numIn").disabled=true; detail=(res.frac===0.5?"Knapp daneben (höchstens 5 % Abweichung) – Rundung oder Rechenweg prüfen. ":"")+"Richtig: "+numText(q); }
   const good=res.frac===1, part=res.frac>0&&res.frac<1;
   const head= timeout&&res.frac===0?"⏰ Zeit abgelaufen":good?"✅ Richtig!":part?"🟡 Teilweise richtig":"❌ Leider falsch";
   $("qFb").innerHTML=`<div class="fb ${good?"ok":"bad"}"><b>${head} · +${res.pts} P</b><div class="small" style="margin-bottom:6px">${esc(detail)}</div>${esc(q.e)}${altHtml(q)}</div>`;
@@ -431,6 +437,10 @@ function stopQuiz(){ if(cur) clearInterval(cur.timerId); cur=null; solo=null; $(
 
 /* ================= SOLO ================= */
 let solo=null, lastSoloTopic="mix", lastSoloSet=null;
+let soloNoTime = LS.get(G+"notime")==="1";
+function setNoTime(v){ soloNoTime=!!v; LS.set(G+"notime",soloNoTime?"1":"0"); $("noTime").checked=$("noTime2").checked=soloNoTime; }
+$("noTime").onchange=e=>setNoTime(e.target.checked); $("noTime2").onchange=e=>setNoTime(e.target.checked);
+setNoTime(soloNoTime);
 function startSolo(topic,tset){
   LS.set(G+"nick",nick()); lastSoloTopic=topic; lastSoloSet=tset||null;
   const ids=pickRound(topic,null,tset||null); if(!ids.length) return;
@@ -439,10 +449,10 @@ function startSolo(topic,tset){
 }
 function soloQ(){
   const seed=solo.seed+":"+solo.idx, q=qInst(QBY[solo.ids[solo.idx]],seed);
-  const T=solo.topic, lim=T==="blitz"?10:TIME[q.type];
+  const T=solo.topic, lim=soloNoTime||q.type==="num" ? 0 : T==="blitz" ? 10 : TIME[q.type];
   const streak=solo.res.filter(r=>r.frac===1).length;
   $("prevBtn").classList.toggle("hidden",solo.idx<1||T==="pruefung");
-  renderQuestion(q,{label:T==="endlos"?`Frage ${solo.idx+1} · Serie ${streak} 🔥`:`Frage ${solo.idx+1}/${solo.ids.length}`,score:solo.score,canPause:T!=="blitz",deadline:Date.now()+lim*1000,limit:lim,
+  renderQuestion(q,{label:T==="endlos"?`Frage ${solo.idx+1} · Serie ${streak} 🔥`:`Frage ${solo.idx+1}/${solo.ids.length}`,score:solo.score,canPause:T!=="blitz",deadline:lim?Date.now()+lim*1000:0,limit:lim,
     onDone:(res,timeout)=>{ solo.score+=res.pts; solo.res.push({id:q.id,seed,frac:res.frac,pts:res.pts,given:givenText(),timeout}); markSeen(q.id,res.frac===1);
       if(T==="wrong" && res.frac===1){ progress.wrong[q.id]=0; LS.set(P+"progress",JSON.stringify(progress)); }
       $("qScore").textContent=fmt(solo.score);
@@ -1101,23 +1111,23 @@ $("lobStart").onclick=async()=>{
   live.myAns={}; live.myScore=0;
   await BE.update(myPlayerPath(),{ans:{},score:0,seen:Date.now()}).catch(()=>{});
   const first=QBY[qids[0]];
-  hostWrite({status:"q",qids,orders,idx:0,endsAt:Date.now()+TIME[first.type]*1000,pausedLeft:null});
+  hostWrite({status:"q",qids,orders,idx:0,endsAt:TIME[first.type]?Date.now()+TIME[first.type]*1000:0,pausedLeft:null});
 };
 function hostGoReveal(){ if(live.game.status!=="q") return; hostWrite({status:"reveal",pausedLeft:null}); }
 $("hostReveal").onclick=hostGoReveal;
 $("hostNext").onclick=()=>{
   if(hot){ hotNext(); return; }
   const g=live.game; if(!g) return;
-  if(g.idx+1<g.qids.length){ const q=QBY[g.qids[g.idx+1]]; hostWrite({status:"q",idx:g.idx+1,endsAt:Date.now()+TIME[q.type]*1000,pausedLeft:null}); }
+  if(g.idx+1<g.qids.length){ const q=QBY[g.qids[g.idx+1]]; hostWrite({status:"q",idx:g.idx+1,endsAt:TIME[q.type]?Date.now()+TIME[q.type]*1000:0,pausedLeft:null}); }
   else hostWrite({status:"end"});
 };
-function hostPause(){ const g=live.game; if(g.status!=="q"||g.pausedLeft!=null) return; hostWrite({pausedLeft:Math.max(0,g.endsAt-Date.now())}); }
+function hostPause(){ const g=live.game; if(g.status!=="q"||g.pausedLeft!=null||!g.endsAt) return; hostWrite({pausedLeft:Math.max(0,g.endsAt-Date.now())}); }
 function hostResume(){ const g=live.game; if(g.pausedLeft==null){ $("pauseOv").classList.add("hidden"); return; } hostWrite({endsAt:Date.now()+g.pausedLeft,pausedLeft:null}); }
 function hostLoop(){
   const g=live.game; if(!live.isHost||!g||g.status!=="q"||g.pausedLeft!=null) return;
   const on=live.players.filter(playerOn);
   const all=on.length>0 && on.every(p=>(p.id===me?live.myAns:p.ans||{})[g.idx]);
-  if(all || Date.now()>g.endsAt+1500) hostGoReveal();
+  if(all || (g.endsAt && Date.now()>g.endsAt+1500)) hostGoReveal();   // ohne Zeitlimit: warten, bis alle geantwortet haben
 }
 
 /* ================= REIHUM (ein Handy) ================= */

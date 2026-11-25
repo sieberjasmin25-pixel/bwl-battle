@@ -396,6 +396,33 @@ try{
   ok(await M.evaluate(()=>window.__res.frac===0.75 && document.querySelectorAll("#multiBox .wrong").length===1), "Ein falsches Kreuz zieht ab (4 richtig, 1 falsch → 75 %)");
   await M.evaluate(()=>{ stopQuiz(); show("vHome"); });
 
+  /* ---------- 17. Rechenaufgaben ohne Zeit, Solo ohne Zeitlimit ---------- */
+  console.log("Zeitlimit");
+  const Z=await ctx.newPage(); Z.on("pageerror",e=>errors.push("Z: "+e.message));
+  await Z.goto(`${URL0}?mock=1&uid=uz&fach=bwl`); await Z.waitForSelector("#conn.on"); await Z.fill("#nick","Zoe");
+  await Z.evaluate(()=>setNoTime(false));
+  await Z.click("#goCalc"); await Z.waitForTimeout(1200);
+  const z1=await Z.evaluate(()=>[cur.limit, document.getElementById("tLeft").textContent, document.querySelector(".timer").classList.contains("hidden"), cur.answered]);
+  ok(z1[0]===0 && /ohne Zeit/.test(z1[1]) && z1[2] && !z1[3], "Rechenaufgabe: kein Zeitlimit, keine Zeitleiste");
+  await answer(Z,true); await Z.waitForFunction(()=>cur.answered);
+  ok(await Z.evaluate(()=>solo.res[0].pts===100), "Richtig gerechnet → genau 100 P (kein Zeitbonus)");
+  await Z.click("#actBtn"); await Z.waitForFunction(()=>cur&&!cur.answered);
+  await Z.evaluate(()=>{ const i=document.getElementById("numIn"); i.value=String(Math.round(cur.q.a*1.03*100)/100).replace(".",","); i.dispatchEvent(new Event("input")); });
+  await Z.click("#actBtn"); await Z.waitForFunction(()=>cur.answered);
+  ok(await Z.evaluate(()=>solo.res[1].pts===50 && solo.res[1].frac===0.5) && /Knapp daneben/.test(await Z.textContent("#qFb")), "Knapp daneben (3 %) → teilweise richtig, 50 P");
+  await Z.evaluate(()=>{ stopQuiz(); location.hash=""; }); await Z.waitForSelector("#vHome:not(.hidden)");
+  await Z.check("#noTime");
+  await Z.click("#goMix");
+  const z2=await Z.evaluate(()=>[cur.limit, document.getElementById("pauseBtn").classList.contains("hidden")]);
+  ok(z2[0]===0 && z2[1], "Schalter „Solo ohne Zeitlimit“: auch Auswahlfragen ohne Zeit");
+  await answer(Z,true); await Z.waitForFunction(()=>cur.answered);
+  ok(await Z.evaluate(()=>solo.res[0].pts<=100 && solo.res[0].frac===1), "Ohne Zeitlimit: kein Zeitbonus");
+  await Z.evaluate(()=>{ stopQuiz(); location.hash=""; }); await Z.waitForSelector("#vHome:not(.hidden)");
+  await Z.click("#goTopics");
+  ok(await Z.isChecked("#noTime2"), "Einstellung ist auch auf „Runde zusammenstellen“ gesetzt und wird gemerkt");
+  await Z.uncheck("#noTime2"); await Z.evaluate(()=>{ location.hash=""; });
+  ok(!(await Z.isChecked("#noTime")), "Ausschalten wirkt überall");
+
   /* ---------- 9. Jede Frage jedes Fachs: richtige Antwort wird als richtig gewertet ---------- */
   console.log("Alle Fragen aller Fächer");
   const F=await ctx.newPage(); F.on("pageerror",e=>errors.push("F: "+e.message));

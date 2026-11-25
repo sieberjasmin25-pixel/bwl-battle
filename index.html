@@ -83,6 +83,8 @@ canvas#conf{position:fixed;inset:0;pointer-events:none;z-index:60}
 .opt .ck{flex:0 0 26px;font-size:1.25rem;line-height:1;text-align:center}
 .opt .num{flex:0 0 28px;height:28px;border-radius:50%;background:var(--brand);color:var(--onbrand);display:grid;place-items:center;font-weight:800;font-size:.9rem}
 .opt .num.empty{background:var(--line)}
+.tgl{display:flex;gap:12px;align-items:center;padding:10px 14px;border:1px solid var(--line);border-radius:12px;background:var(--card);cursor:pointer;text-align:left}
+.tgl input{width:24px;height:24px;min-height:0;flex:0 0 24px;margin:0;accent-color:var(--brand)}
 .trow{display:flex;gap:8px;align-items:stretch} .trow>button:first-child{flex:1;min-width:0} .trow .eye{flex:0 0 auto;padding:8px 10px;font-size:.85rem;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px}
 .sadpop{position:fixed;left:50%;top:38%;font-size:5.5rem;line-height:1;transform:translate(-50%,-50%) scale(.4);opacity:0;pointer-events:none;z-index:61;animation:sadpop 1.4s ease-out forwards}
 @keyframes sadpop{18%{opacity:1;transform:translate(-50%,-50%) scale(1.15)}32%{transform:translate(-50%,-50%) scale(1)}75%{opacity:1}100%{opacity:0;transform:translate(-50%,-25%) scale(1)}}
@@ -140,6 +142,7 @@ canvas#conf{position:fixed;inset:0;pointer-events:none;z-index:60}
     <div class="status" id="conn"><i></i><span>Verbinde mit der Rangliste …</span></div>
   </div>
   <div class="btnrow">
+    <label class="tgl" for="noTime"><input type="checkbox" id="noTime"><span><b>⏱ Solo ohne Zeitlimit</b><br><span class="muted small">Kein Zeitdruck – dafür kein Zeitbonus</span></span></label>
     <button class="mode needname" id="goMix"><span class="ic">🎯</span><div><b>Solo · Gemischt</b><span>15 Fragen aus allen Themen, bevorzugt welche, die du noch nicht hattest</span></div></button>
     <button class="mode needname" id="goCalc"><span class="ic">🧮</span><div><b>Solo · Nur Rechnen</b><span id="goCalcTxt">Nur Rechenaufgaben aus allen Themen</span></div></button>
     <button class="mode needname hidden" id="goWrong"><span class="ic">❌</span><div><b>Falsche nochmal üben</b><span id="goWrongTxt"></span></div></button>
@@ -167,7 +170,7 @@ canvas#conf{position:fixed;inset:0;pointer-events:none;z-index:60}
       <button class="btn2" id="goMe">📊 Mein Profil</button>
     </div>
   </div>
-  <p class="muted small">Punkte: 100 pro richtiger Antwort, dazu bis zu +50 Zeitbonus. Bei Zuordnungen gibt es Teilpunkte. In die Rangliste zählen Solo-Runden, Duelle und Live-Battles. Kein Konto nötig – dein Handy merkt sich, wer du bist.</p>
+  <p class="muted small">Punkte: 100 pro richtiger Antwort, dazu bis zu +50 Zeitbonus. Rechenaufgaben haben kein Zeitlimit: 100 P richtig, 50 P knapp daneben (höchstens 5 %). Bei Zuordnungen gibt es Teilpunkte. In die Rangliste zählen Solo-Runden, Duelle und Live-Battles. Kein Konto nötig – dein Handy merkt sich, wer du bist.</p>
 </section>
 
 <!-- THEMEN -->
@@ -180,6 +183,7 @@ canvas#conf{position:fixed;inset:0;pointer-events:none;z-index:60}
   <div class="row between"><b>Themen</b><span><button class="linkbtn" id="selAll">Alle</button>·<button class="linkbtn" id="selNone">Keine</button></span></div>
   <div style="height:6px"></div>
   <div class="tlist" id="topicList"></div>
+  <label class="tgl" for="noTime2"><input type="checkbox" id="noTime2"><span><b>⏱ Solo ohne Zeitlimit</b><br><span class="muted small">Kein Zeitdruck – dafür kein Zeitbonus</span></span></label>
   <div class="startbar">
     <button class="btn" id="cfgStart">▶ Starten</button>
     <p class="muted small" id="cfgInfo" style="margin:6px 0 0;text-align:center"></p>
