@@ -1,6 +1,6 @@
 # ⚔️ Gallisches Dorfduell
 
-Quiz-Battle für die Klausuren (DHBW, Personalisierte Ernährung). Fächer: **Grundlagen der BWL** (102 Fragen), **Software-Ergonomie** (88 Fragen), **Software-Architektur** (94 Fragen).
+Quiz-Battle für die Klausuren (DHBW, Personalisierte Ernährung). Fächer: **Grundlagen der BWL**, **Software-Ergonomie**, **Software-Architektur**, **Statistik**.
 
 **Spielen:** https://sieberjasmin25-pixel.github.io/bwl-battle/
 
